@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "SIGAA Melhor (UNIFEI)",
+  "version": "2.2.0",
+  "description": "Painel moderno para o SIGAA da UNIFEI: notas, simulador, faltas, horário, agenda, desempenho e exportação para Google Agenda. Tudo roda no seu navegador.",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://sigaa.unifei.edu.br/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sigaa.unifei.edu.br/sigaa/*"
+      ],
+      "js": [
+        "parsers.js",
+        "nucleo.js",
+        "estilo.js",
+        "telas.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sigaa-melhor@unifei.estudantes",
+      "strict_min_version": "121.0"
+    }
+  },
+  "author": "Otávio Zordan Alves",
+  "homepage_url": "https://www.linkedin.com/in/otavio-zordan/"
+}

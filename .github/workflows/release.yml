@@ -1,0 +1,42 @@
+# Gera um Release com o .zip sempre que a versão do manifest.json muda.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: ['extensao/manifest.json']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ler versão
+        id: v
+        run: echo "versao=$(jq -r .version extensao/manifest.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Release já existe?
+        id: ex
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.versao }}" >/dev/null 2>&1; then
+            echo "existe=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Empacotar
+        if: steps.ex.outputs.existe != '1'
+        run: zip -r sigaa-melhor.zip extensao LEIA-ME.txt
+
+      - name: Publicar Release
+        if: steps.ex.outputs.existe != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.v.outputs.versao }}" sigaa-melhor.zip \
+            --title "SIGAA Melhor ${{ steps.v.outputs.versao }}" --generate-notes
