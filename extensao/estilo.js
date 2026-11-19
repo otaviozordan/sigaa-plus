@@ -312,6 +312,11 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .pd{display:flex;align-items:center;gap:10px;font-size:14px}
 .pd-h{width:44px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mut)}
 .cols.ini{align-items:start}
+.convite.topo{display:flex;align-items:center;gap:14px;padding:12px 16px;margin-bottom:14px}
+.convite.topo .cv-i{font-size:22px}
+.convite.topo .cv-t{flex:1;font-size:14.5px;line-height:1.45}
+.convite.topo .cv-t span{color:var(--mut)}
+@media (max-width:820px){.convite.topo{flex-wrap:wrap}.convite.topo .btn{width:100%;justify-content:center}}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

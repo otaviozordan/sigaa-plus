@@ -172,8 +172,8 @@ var SMT = (() => {
     if (vis('favs') && favs.length) B.favs = `<div class="card" data-id="favs"><h3>★ Atalhos favoritos</h3><div class="acts">${favs.map(m => `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}">${esc(m.label)} ${ic('ext')}</button>`).join('')}</div></div>`;
     // ordem padrão (o arrastar ⠿ continua podendo mudar): o que se usa todo dia primeiro
     const col = ks => ks.map(k => B[k] || '').join('');
-    h += `<div class="cols ini"><div data-ordem="inicio:a">${col(['hoje', 'turmas', 'atual'])}</div><div data-ordem="inicio:b">${col(['prox', 'nov', 'favs', 'convite'])}</div></div>`;
-    return h + (vis('indices') ? `<h3 style="margin:8px 0 10px;font-size:16px">Seus índices</h3><div class="grid">${stats.join('')}</div>` : '');
+    h += `<div class="cols ini"><div data-ordem="inicio:a">${col(['hoje', 'turmas', 'atual'])}</div><div data-ordem="inicio:b">${col(['nov', 'prox', 'favs'])}</div></div>`;
+    return (B.convite || '') + h + (vis('indices') ? `<h3 style="margin:8px 0 10px;font-size:16px">Seus índices</h3><div class="grid">${stats.join('')}</div>` : '');
   }
 
   /* ---------------- TURMAS ---------------- */
@@ -734,8 +734,8 @@ var SMT = (() => {
   /** Convite discreto para conhecer o autor (aparece depois de algumas aberturas ou após atualizar). */
   function conviteLinkedin(S) {
     const nome = N.AUTOR.nome.split(' ').filter((_, k, a) => k === 0 || k === a.length - 2).join(' '); // "Otávio Zordan"
-    return `<div class="card convite" data-id="convite"><h3>💙 Curtiu o SIGAA+?</h3><p class="small" style="margin:0 0 10px">O SIGAA+ é gratuito e feito por ${esc(nome)}. Que tal se conectar?</p>
-      <div class="acts"><button class="btn li" data-a="linkedin">${ic('link')} Conectar no LinkedIn</button></div></div>`;
+    return `<div class="card convite topo"><span class="cv-i">💙</span><div class="cv-t"><b>Curtiu o SIGAA+?</b> <span>O SIGAA+ é gratuito e feito por ${esc(nome)}. Que tal se conectar?</span></div>
+      <button class="btn li" data-a="linkedin">${ic('link')} Conectar no LinkedIn</button></div>`;
   }
 
 

@@ -19,7 +19,7 @@
   async function carregarPessoal() {
     const p = await store.get(chaveP());
     S.pessoal = { anot: {}, tarefas: [], favs: [], sim: {}, ...(p || {}) };
-    if (!S.pessoal.inicioV2) { if (S.pessoal.ordem) { delete S.pessoal.ordem['inicio:a']; delete S.pessoal.ordem['inicio:b']; } S.pessoal.inicioV2 = true; }
+    if (!S.pessoal.inicioV3) { if (S.pessoal.ordem) { delete S.pessoal.ordem['inicio:a']; delete S.pessoal.ordem['inicio:b']; } S.pessoal.inicioV3 = true; }
   }
 
   /* ---------------- botão flutuante ---------------- */
