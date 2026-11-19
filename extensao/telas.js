@@ -1,4 +1,4 @@
-/* SIGAA Melhor — telas. Funções puras: recebem o estado e devolvem HTML. */
+/* SIGAA+ — telas. Funções puras: recebem o estado e devolvem HTML. */
 var SMT = (() => {
   const N = SMN;
   const { esc, titulo, norm, busca, fmt, parseData, hoje, isoDia, deIso, DIA_MS, f1, f2, quando, diasAte } = N;
@@ -136,7 +136,7 @@ var SMT = (() => {
     const nov = novidades(S, 7);
     const primeiraVez = modelo.hist.inicio === isoDia(hj) && !nov.length;
     h += `<div class="card" data-id="nov"><h3>${ic('notas')} Novidades dos últimos 7 dias</h3>${nov.length ? nov.slice(0, 12).map(n => `<div class="row"><span class="dot" style="background:${n.cor}"></span><div class="grow"><span class="chip ${n.tipo === 'falta' ? 'bad' : 'ok'}">${n.tipo}</span> <span class="small fade">${fmt(deIso(n.visto))}</span><br>${n.html}</div></div>`).join('')
-      : vazio(primeiraVez ? 'Primeira vez aqui: a partir de agora o SIGAA Melhor anota quando cada nota e falta aparece e mostra aqui o que for novo.' : 'Nenhuma nota ou falta nova desde ' + fmt(new Date(hj - 7 * DIA_MS)) + '.')}</div>`;
+      : vazio(primeiraVez ? 'Primeira vez aqui: a partir de agora o SIGAA+ anota quando cada nota e falta aparece e mostra aqui o que for novo.' : 'Nenhuma nota ou falta nova desde ' + fmt(new Date(hj - 7 * DIA_MS)) + '.')}</div>`;
     h += `</div><div data-ordem="inicio:b">`;
 
     h += `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
@@ -253,7 +253,7 @@ var SMT = (() => {
     const nums = [...sem.keys()].filter(n => n > 0).sort((a, b) => b - a);
     const semData = n => { const a = new Date(+ini + (n - 1) * 7 * DIA_MS); return `${fmt(a)} – ${fmt(new Date(+a + 6 * DIA_MS))}`; };
     const baseline = Object.values(hist.notas || {}).some(h => !h.visto);
-    let h = `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA Melhor anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p><div class="card">`;
+    let h = `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA+ anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p><div class="card">`;
     h += nums.map(n => {
       const w = sem.get(n);
       const totF = w.faltas.reduce((a, x) => a + x.r.faltas, 0);
@@ -478,7 +478,7 @@ var SMT = (() => {
 
   const passosAtualizar = `<ol class="small" style="margin:8px 0 0;padding-left:18px">
       <li>Clique em <b>Baixar versão nova</b> e extraia o .zip <b>por cima da pasta da extensão</b> (substituir arquivos).</li>
-      <li>Abra <b>chrome://extensions</b> e clique no <b>↻</b> do SIGAA Melhor.</li>
+      <li>Abra <b>chrome://extensions</b> e clique no <b>↻</b> do SIGAA+.</li>
       <li>Recarregue o SIGAA (F5). Seus dados, tarefas e ajustes continuam salvos.</li></ol>`;
   /** Situação da versão (tela Sobre). */
   function blocoAtualizacao(S) {
@@ -495,7 +495,7 @@ var SMT = (() => {
   function faixaAtualizacao(S) {
     const u = S.upd;
     if (!u || !u.nova || S.cfg.updIgnorada === u.remota) return '';
-    return `<div class="updbar">${ic('down')}<span><b>Nova versão ${esc(u.remota)}</b> do SIGAA Melhor disponível.</span>
+    return `<div class="updbar">${ic('down')}<span><b>Nova versão ${esc(u.remota)}</b> do SIGAA+ disponível.</span>
       <a class="btn sm pri" href="${esc(N.LINKS.download)}" target="_blank" rel="noopener" style="text-decoration:none">Baixar</a>
       <button class="btn sm" data-v="sobre">Como atualizar</button><button class="ib" data-a="upd-depois" title="Lembrar depois">${ic('x')}</button></div>`;
   }
@@ -512,12 +512,12 @@ var SMT = (() => {
       ['Desempenho', 'gráfico da média por semestre'],
       ['Organização', 'arraste os cartões pela alça ⠿'],
     ];
-    return `<div class="hero"><h2>📚 SIGAA Melhor</h2><p>${S.versao ? 'Versão ' + esc(S.versao) + ' · ' : ''}painel do estudante para o SIGAA da UNIFEI</p>
+    return `<div class="hero"><h2>📚 SIGAA+</h2><p>${S.versao ? 'Versão ' + esc(S.versao) + ' · ' : ''}painel do estudante para o SIGAA da UNIFEI</p>
         <div class="pills"><span class="pill">Feito por ${esc(A.nome)}</span></div></div>
       <div class="cols"><div>
         <div class="card"><h3>${ic('sobre')} Autor</h3>
           <div class="row"><span class="logo" style="padding:0"><span class="m" style="width:46px;height:46px;font-size:16px;border-radius:12px">OZ</span></span>
-          <div class="grow"><div class="b" style="font-size:16px">${esc(A.nome)}</div><div class="small muted">Criador e desenvolvedor do SIGAA Melhor</div>
+          <div class="grow"><div class="b" style="font-size:16px">${esc(A.nome)}</div><div class="small muted">Criador e desenvolvedor do SIGAA+</div>
           ${A.linkedin ? `<div class="acts" style="margin-top:10px"><a class="btn pri" href="${esc(A.linkedin)}" target="_blank" rel="noopener" style="text-decoration:none">${ic('link')} LinkedIn</a></div>` : ''}</div></div></div>
         <div class="card"><h3>${ic('refresh')} Atualizações</h3>${blocoAtualizacao(S)}</div>
         <div class="card"><h3>${ic('info')} Privacidade</h3><p class="small" style="margin:0">Tudo roda no seu navegador, com o login que você já fez no SIGAA. A extensão não pede senha e não envia seus dados para nenhum servidor além do próprio SIGAA. Os botões "Google Agenda" só abrem o Google quando você clica. A checagem de versão nova só lê o número da versão no GitHub (dá para desligar em Ajustes).</p></div>

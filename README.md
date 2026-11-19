@@ -1,4 +1,4 @@
-# 📚 SIGAA Melhor (UNIFEI)
+# 📚 SIGAA+ (UNIFEI)
 
 Extensão de navegador que transforma o SIGAA da UNIFEI num painel moderno, rápido e organizado — com notas por avaliação, simulador, faltas, horário, agenda e integração com o Google Agenda.
 
@@ -6,10 +6,10 @@ Extensão de navegador que transforma o SIGAA da UNIFEI num painel moderno, ráp
 
 ## ⬇️ Instalar
 
-1. Baixe o **[sigaa-melhor.zip da última versão](https://github.com/otaviozordan/sigaa-melhor/releases/latest/download/sigaa-melhor.zip)** e extraia numa pasta que você não vá apagar.
+1. Baixe o **[sigaa-plus.zip da última versão](https://github.com/otaviozordan/sigaa-plus/releases/latest/download/sigaa-plus.zip)** e extraia numa pasta que você não vá apagar.
 2. Abra `chrome://extensions` (Edge: `edge://extensions`) e ative o **Modo do desenvolvedor**.
 3. Clique em **Carregar sem compactação** e escolha a pasta `extensao`.
-4. Entre no SIGAA. O botão **📚 SIGAA Melhor** aparece no canto inferior direito (atalho **Alt+S**).
+4. Entre no SIGAA. O botão **📚 SIGAA+** aparece no canto inferior direito (atalho **Alt+S**).
 
 Firefox: `about:debugging#/runtime/this-firefox` → *Carregar extensão temporária* → `extensao/manifest.json`.
 
@@ -18,7 +18,7 @@ Firefox: `about:debugging#/runtime/this-firefox` → *Carregar extensão tempor�
 A extensão avisa sozinha quando sai uma versão nova (faixa verde no painel e selo "atualizar" no botão). Para atualizar:
 
 1. Baixe o .zip novo e extraia **por cima** da mesma pasta (substituir arquivos).
-2. Em `chrome://extensions`, clique no **↻** do SIGAA Melhor e recarregue o SIGAA.
+2. Em `chrome://extensions`, clique no **↻** do SIGAA+ e recarregue o SIGAA.
 
 Suas tarefas, anotações e ajustes continuam salvos.
 

@@ -1,4 +1,4 @@
-/* SIGAA Melhor — painel injetado nas páginas do SIGAA. Usa a sessão já logada; nada sai do navegador. */
+/* SIGAA+ — painel injetado nas páginas do SIGAA. Usa a sessão já logada; nada sai do navegador. */
 (() => {
   if (window.__sigaaMelhor) return;
   window.__sigaaMelhor = true;
@@ -32,7 +32,7 @@
       button:hover{transform:translateY(-2px)}
       .b{background:#ff5a36;border-radius:99px;font-size:11px;padding:0 6px;line-height:18px;display:none}
       .u{background:#16a34a;border-radius:99px;font-size:11px;padding:0 7px;line-height:18px;display:none}
-    </style><button title="Abrir SIGAA Melhor (Alt+S)">📚 SIGAA Melhor <span class="b"></span><span class="u">atualizar</span></button>`;
+    </style><button title="Abrir SIGAA+ (Alt+S)">📚 SIGAA+ <span class="b"></span><span class="u">atualizar</span></button>`;
     sr.querySelector('button').onclick = abrir;
     fab = sr.querySelector('.b'); fabUpd = sr.querySelector('.u');
     document.body.appendChild(b);
@@ -58,7 +58,7 @@
     root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `<style>${SMCSS}</style><div class="app" data-tema="${esc(S.cfg.tema)}" tabindex="-1">
       <aside>
-        <div class="logo"><span class="m">S</span><div>SIGAA Melhor<small>painel do estudante</small></div></div>
+        <div class="logo"><span class="m" style="font-size:13px">S+</span><div>SIGAA+<small>painel do estudante</small></div></div>
         ${T.VIEWS.map(([k, l], i) => ({ faltas: '<div class="sec">Acompanhamento</div>', funcoes: '<div class="sec">Mais</div>' }[k] || '') + `<button class="nv" data-v="${k}" title="${esc(l)}${i < 9 ? ` (tecla ${i + 1})` : ''}">${T.ic(k)}<span>${esc(l)}</span>${k === 'inicio' ? '<span class="bdg" hidden></span>' : i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('')}
         <a class="foot" href="#" data-v="sobre">por ${esc(N.AUTOR.nome)}</a>
       </aside>
@@ -209,7 +209,7 @@
         else if (emSegundoPlano) toast('Dados atualizados.');
       }
     } catch (e) {
-      console.error('[SIGAA Melhor]', e);
+      console.error('[SIGAA+]', e);
       const msgs = {
         login: ['Você não está logado', 'Entre no SIGAA com seu usuário e senha e abra o painel de novo.'],
         aviso: ['O SIGAA está mostrando um aviso', 'Feche este painel, clique em "Continuar" no aviso do SIGAA e abra o painel de novo.'],
@@ -293,7 +293,7 @@
         case 'horas-padrao': S.cfg.horas = { ...N.HORAS_PADRAO }; salvarCfg(); await prepararModelo(false); ir('ajustes', true); toast('Horários restaurados.'); break;
         case 'backup': {
           const mat = d.perfil.matricula || 'anon';
-          N.baixar(`sigaa-melhor-backup-${N.isoDia(new Date())}.json`, JSON.stringify({ app: 'sigaa-melhor', versao: 2, matricula: mat, cfg: S.cfg, pessoal: S.pessoal, hist: await store.get('hist:' + mat) }, null, 1), 'application/json');
+          N.baixar(`sigaa-plus-backup-${N.isoDia(new Date())}.json`, JSON.stringify({ app: 'sigaa-plus', versao: 2, matricula: mat, cfg: S.cfg, pessoal: S.pessoal, hist: await store.get('hist:' + mat) }, null, 1), 'application/json');
           break;
         }
         case 'limpar':
@@ -334,7 +334,7 @@
     } else if (el.dataset.in === 'importar' && el.files[0]) {
       try {
         const b = JSON.parse(await el.files[0].text());
-        if (b.app !== 'sigaa-melhor') throw new Error('arquivo não é um backup do SIGAA Melhor');
+        if (b.app !== 'sigaa-plus' && b.app !== 'sigaa-melhor') throw new Error('arquivo não é um backup do SIGAA+');
         if (b.cfg) S.cfg = { ...N.CFG_PADRAO, ...b.cfg };
         if (b.pessoal) S.pessoal = { anot: {}, tarefas: [], favs: [], sim: {}, ...b.pessoal };
         if (b.hist) await store.set('hist:' + (S.dados.perfil.matricula || b.matricula || 'anon'), b.hist);

@@ -1,4 +1,4 @@
-/* SIGAA Melhor — leitura das páginas do SIGAA (funções puras, sem rede). */
+/* SIGAA+ — leitura das páginas do SIGAA (funções puras, sem rede). */
 var SM = (() => {
   const clean = s => (s || '').replace(/\s+/g, ' ').trim();
   const HOR = /\b[2-7]+[MTN][1-9]+\b/g;

@@ -31,12 +31,12 @@ jobs:
 
       - name: Empacotar
         if: steps.ex.outputs.existe != '1'
-        run: zip -r sigaa-melhor.zip extensao LEIA-ME.txt
+        run: zip -r sigaa-plus.zip extensao LEIA-ME.txt
 
       - name: Publicar Release
         if: steps.ex.outputs.existe != '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.v.outputs.versao }}" sigaa-melhor.zip \
-            --title "SIGAA Melhor ${{ steps.v.outputs.versao }}" --generate-notes
+          gh release create "v${{ steps.v.outputs.versao }}" sigaa-plus.zip \
+            --title "SIGAA+ ${{ steps.v.outputs.versao }}" --generate-notes

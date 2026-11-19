@@ -1,4 +1,4 @@
-/* SIGAA Melhor — estilos do painel (dentro de Shadow DOM, não afeta o SIGAA). */
+/* SIGAA+ — estilos do painel (dentro de Shadow DOM, não afeta o SIGAA). */
 var SMCSS = `
 :host{all:initial}
 .app{

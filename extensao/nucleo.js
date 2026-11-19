@@ -1,4 +1,4 @@
-/* SIGAA Melhor — núcleo: rede, coleta, histórico e cálculos. Nada sai do navegador. */
+/* SIGAA+ — núcleo: rede, coleta, histórico e cálculos. Nada sai do navegador. */
 var SMN = (() => {
   const { clean } = SM;
   const CORES = ['#4f7cff', '#e8833a', '#2fa36b', '#c9479b', '#8a5cf6', '#d9a400', '#1fa5b8', '#e0524d', '#6b8e23', '#b06c3a', '#3d6db5', '#a0522d'];
@@ -20,11 +20,11 @@ var SMN = (() => {
   };
   const CFG_PADRAO = { tema: 'auto', mediaAprov: 6, unidadesPadrao: 2, horas: HORAS_PADRAO, horasVer: 2, inicio: '', fim: '', autoAbrir: false, cacheMin: 30, checarAtualizacao: true };
   /** Repositório oficial: usado para avisar quando há versão nova. */
-  const REPO = 'otaviozordan/sigaa-melhor';
+  const REPO = 'otaviozordan/sigaa-plus';
   const LINKS = {
     repo: `https://github.com/${REPO}`,
     manifest: `https://raw.githubusercontent.com/${REPO}/main/extensao/manifest.json`,
-    download: `https://github.com/${REPO}/releases/latest/download/sigaa-melhor.zip`,
+    download: `https://github.com/${REPO}/releases/latest/download/sigaa-plus.zip`,
     novidades: `https://github.com/${REPO}/releases/latest`,
   };
   /** "2.10.0" > "2.9.1" ? */
@@ -381,9 +381,9 @@ var SMN = (() => {
   const icsData = (d, hhmm) => { const p = n => String(n).padStart(2, '0'); const base = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`; if (!hhmm) return base; const m = minutos(hhmm); return `${base}T${p(Math.floor(m / 60))}${p(m % 60)}00`; };
   function gerarICS(eventos) {
     const agora = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SIGAA Melhor//PT-BR', 'CALSCALE:GREGORIAN', 'X-WR-TIMEZONE:America/Sao_Paulo', 'X-WR-CALNAME:SIGAA'];
+    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SIGAA+//PT-BR', 'CALSCALE:GREGORIAN', 'X-WR-TIMEZONE:America/Sao_Paulo', 'X-WR-CALNAME:SIGAA'];
     eventos.forEach((e, i) => {
-      L.push('BEGIN:VEVENT', `UID:sigaa-melhor-${i}-${icsData(e.dia, e.ini)}@local`, `DTSTAMP:${agora}`);
+      L.push('BEGIN:VEVENT', `UID:sigaa-plus-${i}-${icsData(e.dia, e.ini)}@local`, `DTSTAMP:${agora}`);
       if (e.ini) L.push(`DTSTART:${icsData(e.dia, e.ini)}`, `DTEND:${icsData(e.dia, e.fim || e.ini)}`);
       else L.push(`DTSTART;VALUE=DATE:${icsData(e.dia)}`, `DTEND;VALUE=DATE:${icsData(new Date(+e.dia + DIA_MS))}`);
       if (e.ate) L.push(`RRULE:FREQ=WEEKLY;UNTIL=${icsData(e.ate)}T235959`);

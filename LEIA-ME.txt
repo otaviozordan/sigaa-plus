@@ -1,9 +1,9 @@
-SIGAA Melhor 2.2 (UNIFEI) - extensão para Chrome, Edge, Brave, Opera e Firefox
-==============================================================================
+SIGAA+ 2.2 (UNIFEI) - extensão para Chrome, Edge, Brave, Opera e Firefox
+=========================================================================
 
 O que faz
 ---------
-Coloca um botão "📚 SIGAA Melhor" no canto do SIGAA (atalho: Alt+S). Ele abre um painel moderno,
+Coloca um botão "📚 SIGAA+" no canto do SIGAA (atalho: Alt+S). Ele abre um painel moderno,
 com tema claro/escuro, que funciona também no celular/tela pequena:
 
   - Início: aulas de HOJE com horário (destaca a aula de agora), próximas provas/entregas com
@@ -51,7 +51,7 @@ Atualizações
 ------------
 A extensão avisa quando há versão nova no GitHub (faixa verde no painel). Baixe o .zip novo,
 extraia por cima da mesma pasta e clique no ↻ da extensão em chrome://extensions.
-Repositório: https://github.com/otaviozordan/sigaa-melhor
+Repositório: https://github.com/otaviozordan/sigaa-plus
 
 Observações
 -----------
