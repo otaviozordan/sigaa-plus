@@ -323,7 +323,9 @@
           break;
         case 'convite-depois': S.cfg.conviteAdiado = Date.now() + 30 * N.DIA_MS; S.convite = false; salvarCfg(); if (S.view === 'inicio') ir('inicio', true); break;
         case 'upd-depois': S.cfg.updIgnorada = S.upd && S.upd.remota; salvarCfg(); renderUpd(); break;
-        case 'ordem-reset': S.pessoal.ordem = {}; salvarPessoal(); toast('Organização original restaurada.'); break;
+        case 'ini-personalizar': S.personalizando = !S.personalizando; ir('inicio', true); break;
+        case 'ini-tudo': S.pessoal.inicioOcultos = []; salvarPessoal(); ir('inicio', true); break;
+        case 'ordem-reset': S.pessoal.ordem = {}; salvarPessoal(); toast('Organização original restaurada.'); if (S.view === 'inicio') ir('inicio', true); break;
         case 'del-tarefa': S.pessoal.tarefas = S.pessoal.tarefas.filter(t => t.id !== el.dataset.id); salvarPessoal(); ir('agenda', true); break;
         case 'horas-padrao': S.cfg.horas = { ...N.HORAS_PADRAO }; salvarCfg(); await prepararModelo(false); ir('ajustes', true); toast('Horários restaurados.'); break;
         case 'backup': {
@@ -365,6 +367,10 @@
       S.cfg.mediaAprov = v; salvarCfg();
       S.dados.turmas.forEach((_, i) => { const r = $('#sr' + i); if (r) r.innerHTML = T.resultadoSim(S, i); });
     } else if (k === 'pal') filtrarPaleta(el.value);
+    else if (k === 'ini-bloco') {
+      const o = new Set(S.pessoal.inicioOcultos || []); if (el.checked) o.delete(el.dataset.k); else o.add(el.dataset.k);
+      S.pessoal.inicioOcultos = [...o]; salvarPessoal(); ir('inicio', true);
+    }
     else if (k === 'f-turma' || k === 'f-feitas') {
       const f = filtroTela(el.dataset.tela);
       if (k === 'f-turma') f.turma = el.value; else f.semFeitas = el.checked;

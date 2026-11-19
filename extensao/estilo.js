@@ -212,6 +212,7 @@ details.mais>summary{color:var(--ac)}
 .frow{border-top:1px solid var(--bd)}.frow:first-child{border-top:0}
 .frow>summary{display:grid;grid-template-columns:12px minmax(0,1fr) minmax(80px,180px) 54px auto;gap:12px;align-items:center;padding:12px 10px;border-radius:10px}
 .frow>summary:hover{background:var(--bg)}
+.frow .fb,.frow .fb .bar{display:block}
 .frow .fn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frow .fq{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .frow .chip{margin:0;justify-self:end}
@@ -220,6 +221,31 @@ details.mais>summary{color:var(--ac)}
 .passadas{margin-top:12px;border-top:1px dashed var(--bd2);padding-top:8px}
 .passadas>summary{list-style:none;color:var(--mut)}
 .passadas .row,.passadas .task{opacity:.65}
+/* notas (tabela estilo turma virtual) */
+.stack{display:flex;flex-direction:column;gap:0}
+.nt-h{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.nt-m{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;text-align:right}
+.nt-m b{font-size:26px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.nt-m .chip{margin:0}
+table.tsig{width:auto;min-width:100%;border-collapse:separate;border-spacing:0;font-size:15px;border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+table.tsig th,table.tsig td{border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);padding:8px 14px;text-align:center;vertical-align:middle;white-space:nowrap}
+table.tsig tr>*:first-child{border-left:0}
+table.tsig thead th{position:static;background:var(--bg);color:var(--mut);font-size:13px;font-weight:650}
+table.tsig thead th.g{color:var(--tx);font-size:13.5px}
+table.tsig thead tr:first-child th.g[colspan]{background:var(--bg2)}
+table.tsig tbody td{border-bottom:0;font-variant-numeric:tabular-nums;font-weight:550;min-width:58px}
+table.tsig .nu{font-weight:750;background:color-mix(in srgb,var(--acs) 55%,transparent)}
+table.tsig thead .nu{color:var(--ac)}
+table.tsig td.baixa{color:var(--bad)}
+table.tsig tr:hover td{background:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:820px){.nt-h{flex-direction:column}.nt-m{justify-content:flex-start}table.tsig th,table.tsig td{padding:7px 10px}}
+.ini-top{display:flex;justify-content:flex-end;margin:-6px 0 8px}
+.personalizar{border-color:var(--ac)}
+.blocos{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.bloco{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;font-size:14px}
+.bloco:hover{background:var(--bg)}
+.bloco input{width:17px;height:17px;accent-color:var(--ac)}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}
