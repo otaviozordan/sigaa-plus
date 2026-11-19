@@ -267,46 +267,63 @@ var SMT = (() => {
   }
 
   /* ---------------- FALTAS ---------------- */
+  /** Barra de "vidas": um segmento por falta permitida (agrupa quando o limite é grande). */
+  function vidas(r) {
+    if (!r.limite) return '';
+    const por = Math.max(1, Math.ceil(r.limite / 32)), n = Math.ceil(r.limite / por), usados = Math.min(n, Math.ceil((r.faltas || 0) / por));
+    const cls = r.nivel === 'bad' ? 'bad' : r.nivel === 'warn' ? 'warn' : 'ok';
+    return `<span class="vidas ${cls}" title="${r.faltas} de ${r.limite} faltas permitidas${por > 1 ? ` (cada bloco = ${por} aulas)` : ''}">${Array.from({ length: n }, (_, k) => `<i class="${k < usados ? 'u' : ''}"></i>`).join('')}</span>`;
+  }
+  /** Anel de porcentagem (presença). */
+  function anelPct(pct, cls) {
+    const r = 26, c = 2 * Math.PI * r, p = Math.max(0, Math.min(1, (pct || 0) / 100));
+    const cor = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)' }[cls] || 'var(--ac)';
+    return `<svg class="anel" viewBox="0 0 64 64" role="img" aria-label="Presença ${pct}%"><circle cx="32" cy="32" r="${r}" class="anel-f"/>
+      <circle cx="32" cy="32" r="${r}" class="anel-v" style="stroke:${cor}" stroke-dasharray="${(p * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 32 32)"/>
+      <text x="32" y="36" text-anchor="middle" class="anel-t" style="font-size:14px">${pct}%</text></svg>`;
+  }
   function vFaltas(S) {
     const { dados, modelo } = S;
     const ts = [...dados.turmas].sort((a, b) => ((a.resumo?.restam ?? 99) - (b.resumo?.restam ?? 99)));
     const total = ts.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
     const totalDias = ts.reduce((a, t) => a + (t.freq ? t.freq.registros.filter(x => x.faltas > 0).length : 0), 0);
+    const pres = ts.reduce((a, t) => a + (t.freq?.presencas || 0), 0), regs = ts.reduce((a, t) => a + (t.freq?.aulasRegistradas || 0), 0);
     const risco = ts.filter(t => ['bad', 'warn'].includes(t.resumo?.nivel)).length;
+    const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
     const linha = t => {
-      const r = t.resumo || {}, f = t.freq;
-      const pct = r.limite ? Math.min(100, Math.round(100 * r.faltas / r.limite)) : 0;
-      const cor = { bad: 'var(--bad)', warn: 'var(--warn)', ok: 'var(--ok)' }[r.nivel] || 'var(--ac)';
-      const diasF = f ? f.registros.filter(x => x.faltas > 0).length : null;
-      const status = r.restam == null ? (r.faltas != null ? pl(r.faltas, 'falta') : '—') : r.restam < 0 ? `passou ${pl(-r.restam, 'aula')} do limite` : `pode faltar ${pl(r.restam, 'aula')}${r.diasRestam != null ? ` · ≈${pl(r.diasRestam, 'dia')}` : ''}`;
-      const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-      const porMes = []; (f ? f.registros : []).forEach(x => { const d = parseData(x.data); if (!d) return; const k = d.getMonth(); let g = porMes[porMes.length - 1]; if (!g || g.m !== k) porMes.push(g = { m: k, xs: [] }); g.xs.push({ ...x, d }); });
-      const diasNovo = porMes.length ? `<div class="fmeses">${porMes.map(g => `<div class="fmes"><span class="fm">${MES[g.m]}</span><div class="fdias">${g.xs.map(x => { const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`]; const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`; return `<span class="fd ${x.faltas == null ? 'nr' : x.faltas ? 'f' : 'p'}" title="${esc(tip)}">${x.d.getDate()}${x.faltas ? `<sup>${x.faltas}</sup>` : ''}</span>`; }).join('')}</div></div>`).join('')}</div>` : '';
-      const dias = f && f.registros.length ? `<div class="dias">${f.registros.map(x => {
+      const r = t.resumo || {}, f = t.freq, cls = r.nivel === 'bad' ? 'bad' : r.nivel === 'warn' ? 'warn' : r.nivel === 'ok' ? 'ok' : '';
+      const diasF = f ? f.registros.filter(x => x.faltas > 0).length : 0;
+      const big = r.restam == null ? `<b>${r.faltas ?? '—'}</b><span>${r.faltas === 1 ? 'falta' : 'faltas'}</span>`
+        : r.restam < 0 ? `<b>−${-r.restam}</b><span>passou do limite</span>`
+        : `<b>+${r.restam}</b><span>${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` · ≈${pl(r.diasRestam, 'dia')}` : ''}</span>`;
+      const porMes = []; (f ? f.registros : []).forEach(x => { const d = parseData(x.data); if (!d) return; let g = porMes[porMes.length - 1]; if (!g || g.m !== d.getMonth()) porMes.push(g = { m: d.getMonth(), xs: [] }); g.xs.push({ ...x, d }); });
+      const grade = porMes.length ? `<div class="fmeses">${porMes.map(g => `<div class="fmes"><span class="fm">${MES[g.m]}</span><div class="fdias">${g.xs.map(x => {
         const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`];
         const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`;
-        return x.faltas == null ? `<span class="dia nr" title="${esc(tip)}"></span>` : x.faltas ? `<span class="dia f" title="${esc(tip)}">${x.faltas}</span>` : `<span class="dia" title="${esc(tip)}"></span>`;
-      }).join('')}</div>` : '';
-      const datasF = f ? f.registros.filter(x => x.faltas).map(x => `${x.data.slice(0, 5)}${x.faltas > 1 ? ` (${x.faltas})` : ''}`).join(', ') : '';
-      const det = [
-        r.restam != null && r.restam >= 0 && r.diasRestam != null ? `Pode faltar mais <b>${pl(r.restam, 'aula')}</b> — cerca de <b>${pl(r.diasRestam, 'dia')} de aula</b>.` : '',
-        f && f.aulasRegistradas ? `Presença: <b>${Math.round(100 * f.presencas / f.aulasRegistradas)}%</b> (${f.presencas} de ${f.aulasRegistradas} aulas registradas${f.aulasCH ? `; ${f.aulasCH} no semestre` : ''}).` : '',
-        f && f.registros.length && !datasF ? 'Nenhuma falta até agora. 👏' : '',
-      ].filter(Boolean).map(x => `<div>${x}</div>`).join('');
-      return `<details class="frow"><summary>
-          <span class="dot" style="background:${t.cor};margin:0"></span>
-          <span class="fn">${esc(titulo(t.nome))}</span>
-          <span class="fb">${r.limite ? `<span class="bar" style="margin:0"><i style="width:${pct}%;background:${cor}"></i></span>` : ''}</span>
-          <span class="fq">${r.faltas != null ? `<b>${r.faltas}</b>${r.limite != null ? `<span class="fade">/${r.limite}</span>` : ''} aulas${diasF ? `<small>em ${pl(diasF, 'dia')}</small>` : ''}` : ''}</span>
-          <span class="chip ${r.nivel === 'na' ? 'gray' : r.nivel}">${esc(status)}</span>
+        return `<span class="fd ${x.faltas == null ? 'nr' : x.faltas ? 'f' : 'p'}" title="${esc(tip)}">${x.d.getDate()}${x.faltas ? `<sup>${x.faltas}</sup>` : ''}</span>`;
+      }).join('')}</div></div>`).join('')}</div>` : '';
+      const pct = f && f.aulasRegistradas ? Math.round(100 * f.presencas / f.aulasRegistradas) : null;
+      const frases = [
+        r.restam != null && r.restam >= 0 ? `Ainda pode faltar <b>${pl(r.restam, 'aula')}</b>${r.diasRestam != null ? ` — cerca de <b>${pl(r.diasRestam, 'dia')} de aula</b>` : ''}.` : r.restam < 0 ? `<b class="err">Passou ${pl(-r.restam, 'aula')} do limite de ${r.limite}.</b>` : '',
+        r.faltas === 0 ? 'Nenhuma falta até agora. 👏' : r.faltas != null ? `Faltou <b>${pl(r.faltas, 'aula')}</b>${diasF ? ` em ${pl(diasF, 'dia')}` : ''}${r.limite != null ? ` de ${r.limite} permitidas` : ''}.` : '',
+        f && f.aulasRegistradas ? `${f.presencas} de ${f.aulasRegistradas} aulas registradas${f.aulasCH ? ` · ${f.aulasCH} no semestre` : ''}.` : '',
+      ].filter(Boolean);
+      return `<details class="fx ${cls}" style="--c:${t.cor}"><summary>
+          <span class="fx-n"><b>${esc(titulo(t.nome))}</b><small>${esc([t.codigo, horarioCurto(S, t)].filter(Boolean).join(' · '))}</small></span>
+          <span class="fx-v">${vidas(r)}<small>${r.faltas != null ? `${r.faltas} de ${r.limite ?? '?'} faltas usadas` : esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros ainda'))}</small></span>
+          <span class="fx-b ${cls}">${big}</span>
           <span class="seta" aria-hidden="true">›</span>
         </summary>
-        <div class="fdet small">${det || `<div class="muted">${esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros de frequência ainda.'))}</div>`}${diasNovo || dias}</div></details>`;
+        <div class="fx-det">${pct != null ? anelPct(pct, cls) : ''}<div class="fx-txt small">${frases.map(x => `<div>${x}</div>`).join('') || `<div class="muted">${esc(t.freqErro || 'Sem registros de frequência ainda.')}</div>`}${grade}</div></div></details>`;
     };
-    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">O limite é 25% das aulas de cada disciplina. Toque numa disciplina (›) para ver dia a dia.</p>
-      <div class="grid"><div class="stat"><div class="v">${total}</div><div class="k">${total === 1 ? 'aula perdida' : 'aulas perdidas'}${totalDias ? ` em ${pl(totalDias, 'dia')}` : ''} no semestre</div></div>
-        <div class="stat"><div class="v" ${risco ? 'style="color:var(--warn)"' : ''}>${risco}</div><div class="k">${risco === 1 ? 'turma perto do limite' : 'turmas perto do limite'}</div></div></div>
-      <div class="card flist">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
+    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Cada bloquinho é uma falta permitida (limite de 25% das aulas). Toque numa disciplina para ver dia a dia.</p>
+      <div class="fx-top">
+        <div><b>${total}</b><span>${total === 1 ? 'aula perdida' : 'aulas perdidas'}${totalDias ? `<br>em ${pl(totalDias, 'dia')}` : ''}</span></div>
+        ${regs ? `<div><b>${Math.round(100 * pres / regs)}%</b><span>de presença<br>no semestre</span></div>` : ''}
+        <div class="${risco ? 'warn' : 'ok'}"><b>${risco}</b><span>${risco === 1 ? 'disciplina perto' : 'disciplinas perto'}<br>do limite</span></div>
+      </div>
+      <div class="fx-lista">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
       <p class="small fade leg-f"><span class="fd p">5</span> presente <span class="fd f">5<sup>2</sup></span> faltou (nº de aulas perdidas) <span class="fd nr">5</span> ainda sem registro</p>`;
   }
 
