@@ -304,6 +304,14 @@ table.tsig thead th.g.u1{background:color-mix(in srgb,var(--bd) 70%,var(--bg2))}
 table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,transparent)}
 .meta{display:inline-block;color:var(--warn);background:var(--warnb);border:1px dashed color-mix(in srgb,var(--warn) 50%,transparent);border-radius:8px;padding:1px 7px;font-style:normal;font-weight:700;font-size:13px}
 @media (max-width:820px){.nt2-h{align-items:flex-start}.anel{width:64px;height:64px}.rts{grid-template-columns:1fr 1fr}}
+.ini-top.sobre-hero{position:relative;height:0;margin:0}
+.ini-top.sobre-hero .btn{position:absolute;right:14px;top:14px;z-index:2;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);color:#fff}
+.ini-top.sobre-hero .btn:hover{background:rgba(255,255,255,.26)}
+.hero h2{padding-right:130px}
+.prox-dia{margin-top:12px;border-top:1px solid var(--bd);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.pd{display:flex;align-items:center;gap:10px;font-size:14px}
+.pd-h{width:44px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mut)}
+.cols.ini{align-items:start}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

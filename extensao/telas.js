@@ -107,7 +107,7 @@ var SMT = (() => {
   /** Botão "Personalizar" e, quando aberto, os interruptores de cada bloco do Início. */
   function barraPersonalizar(S, ocultos) {
     const n = BLOCOS_INICIO.filter(([k]) => !ocultos.has(k)).length;
-    if (!S.personalizando) return `<div class="ini-top"><button class="btn sm" data-a="ini-personalizar" title="Escolher o que aparece no Início">${ic('ajustes')} Personalizar</button></div>`;
+    if (!S.personalizando) return `<div class="ini-top ${ocultos.has('saudacao') ? '' : 'sobre-hero'}"><button class="btn sm" data-a="ini-personalizar" title="Escolher o que aparece no Início">${ic('ajustes')} Personalizar</button></div>`;
     return `<div class="card personalizar"><h3>${ic('ajustes')} Personalizar o Início <span class="r small muted">${n} de ${BLOCOS_INICIO.length} visíveis</span></h3>
       <p class="small muted" style="margin:0 0 10px">Escolha o que aparece. Para mudar a ordem, arraste os cartões pela alça <b>⠿</b>.</p>
       <div class="blocos">${BLOCOS_INICIO.map(([k, l]) => `<label class="bloco"><input type="checkbox" data-in="ini-bloco" data-k="${k}" ${ocultos.has(k) ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>
@@ -130,27 +130,27 @@ var SMT = (() => {
       h += `<div class="alert ${pior}">${ic('alerta')}<div style="flex:1"><b>${al.length === 1 ? 'Atenção' : `${al.length} pontos de atenção`}</b>${al.map(([, txt]) => `<div style="margin-top:3px">${txt}</div>`).join('')}</div></div>`;
     }
 
-    const stats = p.indices.filter(i => /^(IRA|MC|IEA|IECH|IEPL|CR)$/i.test(i.k)).map(i => `<div class="stat" title="${esc(i.t)}"><div class="v">${esc(isNaN(+i.v.replace(',', '.')) ? i.v : (+i.v.replace(',', '.')).toFixed(2))}</div><div class="k">${esc(i.t || i.k)}</div></div>`);
+    const stats = p.indices.filter(i => /^(IRA|MC|IEA|IECH|IEPL|CR)$/i.test(i.k)).map(i => `<div class="stat" title="${esc(i.t)}"><div class="v">${esc(isNaN(+i.v.replace(',', '.')) ? i.v : (+i.v.replace(',', '.')).toFixed(2).replace('.', ','))}</div><div class="k">${esc(i.t || i.k)}</div></div>`);
     if (p.pctInteg != null) stats.push(`<div class="stat"><div class="v">${p.pctInteg}%</div><div class="k">do curso integralizado</div><div class="bar"><i style="width:${p.pctInteg}%;background:var(--ac)"></i></div></div>`);
     const totF = dados.turmas.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
     stats.push(`<div class="stat"><div class="v">${totF}</div><div class="k">faltas em ${esc(dados.periodo)}</div></div>`);
     const medias = dados.turmas.map(t => statusNota(S, t).media).filter(x => x != null);
     if (medias.length) stats.push(`<div class="stat"><div class="v">${f1(medias.reduce((a, b) => a + b, 0) / medias.length)}</div><div class="k">média parcial do semestre</div></div>`);
-    h += `<div class="cols"><div data-ordem="inicio:a">`;
+    const B = {};
 
     // hoje
     const aulas = N.aulasDoDia(dados.turmas, hj, S.cfg), agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
     let amanha = null;
     if (!aulas.length || aulas.every(a => N.minutos(a.fim) < agoraMin)) { for (let i = 1; i < 7 && !amanha; i++) { const d = new Date(+hj + i * DIA_MS); const x = N.aulasDoDia(dados.turmas, d, S.cfg); if (x.length) amanha = { d, x }; } }
-    if (vis('hoje')) h += `<div class="card" data-id="hoje"><h3>${ic('horario')} Aulas de hoje <a class="r small" href="#" data-v="horario">grade completa →</a></h3>${aulas.length ? aulas.map(a => {
+    if (vis('hoje')) B.hoje = `<div class="card" data-id="hoje"><h3>${ic('horario')} Aulas de hoje <a class="r small" href="#" data-v="horario">grade completa →</a></h3>${aulas.length ? aulas.map(a => {
       const st = N.minutos(a.fim) < agoraMin ? 'passou' : N.minutos(a.ini) <= agoraMin ? 'agora' : '';
       return `<div class="tl ${st}"><div class="hr"><b>${esc(a.ini)}</b>${esc(a.fim)}</div><div class="bx" style="border-color:${a.t.cor}"><b>${esc(titulo(a.t.nome))}</b>${a.lab ? ' <span class="chip warn">🧪 aula prática</span>' : ''}${st === 'agora' ? ' <span class="chip">agora</span>' : ''}<div class="small muted">${esc(a.t.local)} · ${pl(a.qtd, 'aula')}</div></div></div>`;
     }).join('') : vazio('Sem aulas hoje. 🎉')}
-      ${amanha ? `<div class="small muted" style="margin-top:10px">Próximo dia de aula: <b>${esc(N.dataLonga(amanha.d))}</b> — ${amanha.x.map(a => `${esc(a.ini)} ${esc(titulo(a.t.nome))}`).join(' · ')}</div>` : ''}</div>`;
+      ${amanha ? `<div class="prox-dia"><div class="small muted">Próximo dia de aula: <b>${esc(N.dataLonga(amanha.d))}</b> (${quando(amanha.d)})</div>${amanha.x.map(a => `<div class="pd"><span class="pd-h">${esc(a.ini)}</span><span class="dot" style="background:${a.t.cor};margin:0"></span><span>${esc(titulo(a.t.nome))}${a.lab ? ' <span class="chip warn">🧪 aula prática</span>' : ''}</span></div>`).join('')}</div>` : ''}</div>`;
 
     // próximas atividades
     const prox = itensAgenda(S).filter(i => i.d && diasAte(i.d) >= 0 && !i.feito).slice(0, 6);
-    if (vis('prox')) h += `<div class="card" data-id="prox"><h3>${ic('agenda')} Próximas entregas e provas <a class="r small" href="#" data-v="agenda">agenda →</a></h3>${prox.length ? prox.map(a => {
+    if (vis('prox')) B.prox = `<div class="card" data-id="prox"><h3>${ic('agenda')} Próximas provas e atividades <a class="r small" href="#" data-v="agenda">agenda →</a></h3>${prox.length ? prox.map(a => {
       const n = diasAte(a.d);
       return `<div class="row"><span class="dot" style="background:${a.cor}"></span><div class="grow"><b>${esc(a.titulo)}</b><div class="small muted">${esc(a.cat)}${a.turma ? ' · ' + esc(titulo(a.turma)) : ''}</div></div><div style="text-align:right"><span class="chip ${n <= 1 ? 'bad' : n <= 3 ? 'warn' : 'gray'}">${quando(a.d)}</span><div class="small fade">${fmt(a.d)} ${esc(a.hora || '')}</div></div></div>`;
     }).join('') : vazio('Nada marcado. Adicione suas próprias tarefas na Agenda.')}</div>`;
@@ -158,20 +158,22 @@ var SMT = (() => {
     // novidades
     const nov = novidades(S, 7);
     const primeiraVez = modelo.hist.inicio === isoDia(hj) && !nov.length;
-    if (vis('nov')) h += `<div class="card" data-id="nov"><h3>${ic('notas')} Novidades dos últimos 7 dias</h3>${nov.length ? nov.slice(0, 12).map(n => `<div class="row"><span class="dot" style="background:${n.cor}"></span><div class="grow"><span class="chip ${n.tipo === 'falta' ? 'bad' : 'ok'}">${n.tipo}</span> <span class="small fade">${fmt(deIso(n.visto))}</span><br>${n.html}</div></div>`).join('')
+    if (vis('nov')) B.nov = `<div class="card" data-id="nov"><h3>${ic('notas')} Novidades dos últimos 7 dias</h3>${nov.length ? nov.slice(0, 12).map(n => `<div class="row"><span class="dot" style="background:${n.cor}"></span><div class="grow"><span class="chip ${n.tipo === 'falta' ? 'bad' : 'ok'}">${n.tipo}</span> <span class="small fade">${fmt(deIso(n.visto))}</span><br>${n.html}</div></div>`).join('')
       : vazio(primeiraVez ? 'Primeira vez aqui: a partir de agora o SIGAA+ anota quando cada nota e falta aparece e mostra aqui o que for novo.' : 'Nenhuma nota ou falta nova desde ' + fmt(new Date(hj - 7 * DIA_MS)) + '.')}</div>`;
-    if (S.convite) h += conviteLinkedin(S);
-    h += `</div><div data-ordem="inicio:b">`;
+    if (S.convite) B.convite = conviteLinkedin(S);
 
-    if (vis('turmas')) h += `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
+    if (vis('turmas')) B.turmas = `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
       const fsU = fechamento(S, t), n = statusNota(S, t);
       const notas = fsU.length ? fsU.map(u => `<span class="chip ${u.v == null ? 'gray' : u.v < S.cfg.mediaAprov ? 'bad' : ''}">${u.rot}: ${u.v != null ? f1(u.v) : 'falta lançar'}</span>`).join('') + (n.estado === 'possivel' ? `<span class="chip ${n.cls}">${esc(n.txt)}</span>` : '') : '';
-      return `<div class="row"><span class="dot" style="background:${t.cor}"></span><div class="grow"><div class="b">${esc(titulo(t.nome))} <span class="fade small" style="font-weight:400">${esc(t.codigo)}</span></div><div class="muted small">${esc(t.local)} · ${esc((t.fixos || t.horarios).join(' '))}</div>${chipFaltas(t.resumo)}${notas}</div></div>`;
+      return `<div class="row"><span class="dot" style="background:${t.cor}"></span><div class="grow"><div class="b">${esc(titulo(t.nome))} <span class="fade small" style="font-weight:400">${esc(t.codigo)}</span></div><div class="muted small">${[t.local, horarioCurto(S, t)].filter(Boolean).map(esc).join(' · ')}</div>${chipFaltas(t.resumo)}${notas}</div></div>`;
     }).join('') || vazio('Nenhuma turma encontrada.')}</div>`;
-    if (vis('atual') && dados.atualizacoes.length) h += `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => `<div class="row"><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`).join('')}</div>`;
+    if (vis('atual') && dados.atualizacoes.length) B.atual = `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => `<div class="row"><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`).join('')}</div>`;
     const favs = (S.pessoal.favs || []).map(act => dados.menu.find(m => m.act === act)).filter(Boolean);
-    if (vis('favs') && favs.length) h += `<div class="card" data-id="favs"><h3>★ Atalhos favoritos</h3><div class="acts">${favs.map(m => `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}">${esc(m.label)} ${ic('ext')}</button>`).join('')}</div></div>`;
-    return h + `</div></div>` + (vis('indices') ? `<h3 style="margin:8px 0 10px;font-size:16px">Seus índices</h3><div class="grid">${stats.join('')}</div>` : '');
+    if (vis('favs') && favs.length) B.favs = `<div class="card" data-id="favs"><h3>★ Atalhos favoritos</h3><div class="acts">${favs.map(m => `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}">${esc(m.label)} ${ic('ext')}</button>`).join('')}</div></div>`;
+    // ordem padrão (o arrastar ⠿ continua podendo mudar): o que se usa todo dia primeiro
+    const col = ks => ks.map(k => B[k] || '').join('');
+    h += `<div class="cols ini"><div data-ordem="inicio:a">${col(['hoje', 'turmas', 'atual'])}</div><div data-ordem="inicio:b">${col(['prox', 'nov', 'favs', 'convite'])}</div></div>`;
+    return h + (vis('indices') ? `<h3 style="margin:8px 0 10px;font-size:16px">Seus índices</h3><div class="grid">${stats.join('')}</div>` : '');
   }
 
   /* ---------------- TURMAS ---------------- */
