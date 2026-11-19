@@ -189,15 +189,13 @@ var SM = (() => {
     return [...form.querySelectorAll('a[onclick]')].map(a => ({ texto: norm(a.textContent), onclick: a.getAttribute('onclick') || '', jsf: jsfParams(a.getAttribute('onclick')) })).filter(x => x.jsf && x.texto);
   }
 
-  /** Cabeçalho de tabela com colspan/rowspan -> uma lista de rótulos por coluna. */
-  function cabecalhos(table) {
-    const rows = [...table.querySelectorAll('thead tr')];
-    if (!rows.length) { const r = table.querySelector('tr'); if (r && r.querySelector('th')) rows.push(r); }
+  /** Linhas de cabeçalho (com colspan/rowspan) -> um rótulo por coluna: {grupo, h, title}. */
+  function cabecalhos(rows) {
     const grid = [];
     rows.forEach((tr, r) => {
       grid[r] = grid[r] || [];
       let c = 0;
-      [...tr.children].forEach(cell => {
+      [...tr.cells].forEach(cell => {
         while (grid[r][c]) c++;
         const cs = +cell.getAttribute('colspan') || 1, rs = +cell.getAttribute('rowspan') || 1;
         const info = { t: clean(cell.textContent), title: clean(cell.getAttribute('title') || '') };
@@ -213,6 +211,18 @@ var SM = (() => {
     });
   }
 
+  /** Linha do aluno: a que começa com a matrícula (6+ dígitos). */
+  const ehLinhaAluno = tr => [...tr.cells].some(c => /^\d{6,}\b/.test(clean(c.textContent)));
+  /** Separa a tabela de notas em linhas de cabeçalho e a linha do aluno, aceitando th ou td, com ou sem thead. */
+  function partesTabela(table) {
+    const rows = [...table.rows];
+    let di = rows.findIndex(ehLinhaAluno);
+    if (di < 0) di = rows.findIndex(tr => !tr.closest('thead') && [...tr.cells].filter(c => c.tagName === 'TD').length >= 3);
+    // linhas de título ("Alunos Matriculados") têm uma célula só: não são cabeçalho de coluna
+    const hdr = rows.slice(0, di < 0 ? rows.length : di).filter(tr => tr.cells.length > 1 && clean(tr.textContent));
+    return { hdr, linha: di >= 0 ? rows[di] : null };
+  }
+
   /** Página "Ver Notas" da turma virtual: avaliações, pesos, notas e textos sobre o método. */
   function parseNotasTurma(doc) {
     const val = id => { const e = doc.getElementById(id); return e ? clean(e.value != null ? e.value : e.textContent) : ''; };
@@ -221,16 +231,17 @@ var SM = (() => {
       return { id, nome: clean(i.value != null ? i.value : i.textContent), abrev: val('abrevAval_' + id), peso: val('pesoAval_' + id), nota: val('notaAval_' + id), unidade: val('unidAval_' + id) };
     }).filter(a => a.nome || a.abrev);
 
-    const tabs = [...doc.querySelectorAll('table')].filter(t => t.querySelector('th') && t.querySelector('td') &&
-      /resultado|unid|nota|m[ée]dia|aval/i.test(clean((t.querySelector('thead') || t.querySelector('tr')).textContent)));
-    const tabela = tabs.sort((a, b) => b.querySelectorAll('th').length - a.querySelectorAll('th').length)[0];
+    // candidatas: tabelas com "Unid"/"Resultado"/"Nota" e uma linha de aluno; fica a mais interna
+    let tabs = [...doc.querySelectorAll('table')].filter(t => /unid|resultado|nota|m[ée]dia|aval/i.test(clean(t.textContent).slice(0, 800)) && [...t.rows].some(tr => ehLinhaAluno(tr) || [...tr.cells].filter(c => c.tagName === 'TD').length >= 3));
+    tabs = tabs.filter(t => !tabs.some(o => o !== t && t.contains(o)));
+    const tabela = tabs.sort((x, y) => (+[...y.rows].some(ehLinhaAluno) - +[...x.rows].some(ehLinhaAluno)) || (y.querySelectorAll('th').length - x.querySelectorAll('th').length))[0];
     let colunas = [];
     if (tabela) {
-      const cab = cabecalhos(tabela);
-      const linha = [...tabela.querySelectorAll('tbody tr, tr')].find(tr => tr.querySelectorAll(':scope > td').length >= Math.min(3, cab.length));
+      const { hdr, linha } = partesTabela(tabela);
+      const cab = cabecalhos(hdr);
       // expande colspan das células para alinhar com o cabeçalho
       const tds = [];
-      if (linha) [...linha.querySelectorAll(':scope > td')].forEach(td => { const cs = +td.getAttribute('colspan') || 1; for (let k = 0; k < cs; k++) tds.push(k ? null : td); });
+      if (linha) [...linha.cells].forEach(td => { const cs = +td.getAttribute('colspan') || 1; for (let k = 0; k < cs; k++) tds.push(k ? null : td); });
       colunas = cab.map((c, j) => ({ ...c, v: tds[j] ? clean(tds[j].textContent) : '', vt: tds[j] ? clean(tds[j].getAttribute('title') || '') : '' }))
         .filter(c => c.h && !/matr[íi]cula|^nome$|discente|^aluno/i.test(c.h));
     }
@@ -255,6 +266,6 @@ var SM = (() => {
     return 'ok';
   }
 
-  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, parseNotasTurma };
+  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, partesTabela, parseNotasTurma };
 })();
 if (typeof module !== 'undefined') module.exports = SM;
