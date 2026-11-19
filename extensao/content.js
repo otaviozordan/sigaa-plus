@@ -330,6 +330,17 @@
           N.baixar(`sigaa-plus-backup-${N.isoDia(new Date())}.json`, JSON.stringify({ app: 'sigaa-plus', versao: 2, matricula: mat, cfg: S.cfg, pessoal: S.pessoal, hist: await store.get('hist:' + mat) }, null, 1), 'application/json');
           break;
         }
+        case 'diag-notas': {
+          const diag = { versao: S.versao, periodo: d.periodo, gerado: new Date().toISOString(), turmas: d.turmas.map(t => ({
+            nome: t.nome, codigo: t.codigo, erro: t.avalErro || null, infos: t.aval ? t.aval.infos : null,
+            colunas: t.aval ? t.aval.colunas.map(x => ({ grupo: x.grupo, h: x.h, v: x.v, title: x.title })) : null,
+            avals: t.aval ? t.aval.avals : null, relatorio: (t.unidades || []).map(u => [u.h, u.v]), resultado: t.resultado,
+            plano: N.planoAvaliacao(t), })) };
+          const txt = JSON.stringify(diag, null, 1);
+          try { await navigator.clipboard.writeText(txt); toast('Diagnóstico copiado! Cole na conversa com o desenvolvedor.'); }
+          catch { N.baixar('diagnostico-notas.json', txt, 'application/json'); toast('Diagnóstico baixado como arquivo.'); }
+          break;
+        }
         case 'limpar':
           if (!confirm('Apagar tarefas, anotações, favoritos, histórico de notas/faltas e o cache deste navegador?')) return;
           try { await chrome.storage.local.clear(); } catch { }

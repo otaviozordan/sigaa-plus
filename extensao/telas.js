@@ -71,9 +71,9 @@ var SMT = (() => {
       const r = t.resumo || {};
       if (r.nivel === 'bad') out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: passou ${pl(-r.restam, 'falta')} do limite de ${r.limite}.`]);
       else if (r.nivel === 'warn') out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: só pode faltar mais <b>${r.restam}</b> ${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` (≈ ${pl(r.diasRestam, 'dia')} de aula)` : ''}.`]);
-      const sim = N.simular((t.unidades || []).map(u => u.v), S.cfg.mediaAprov);
-      if (sim.estado === 'impossivel' && t.unidades.some(u => u.v != null)) out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: nem com 10 nas unidades restantes chega a ${f1(S.cfg.mediaAprov)} — confira a recuperação.`]);
-      else if (sim.estado === 'possivel' && sim.precisa >= 8) out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: precisa de <b>${f1(sim.precisa)}</b> nas próximas unidades.`]);
+      const n = statusNota(S, t), falta = fechamento(S, t).filter(u => u.v == null).map(u => u.rot).join(' e ');
+      if (n.estado === 'impossivel') out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: nem com 10${falta ? ` na ${falta}` : ''} chega a ${f1(S.cfg.mediaAprov)} — confira a reposição.`]);
+      else if (n.estado === 'possivel' && n.precisa >= 8) out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: precisa de <b>${f1(n.precisa)}</b>${falta ? ` na ${falta}` : ' no que falta'}.`]);
     }
     return out;
   }
@@ -134,7 +134,7 @@ var SMT = (() => {
     if (p.pctInteg != null) stats.push(`<div class="stat"><div class="v">${p.pctInteg}%</div><div class="k">do curso integralizado</div><div class="bar"><i style="width:${p.pctInteg}%;background:var(--ac)"></i></div></div>`);
     const totF = dados.turmas.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
     stats.push(`<div class="stat"><div class="v">${totF}</div><div class="k">faltas em ${esc(dados.periodo)}</div></div>`);
-    const medias = dados.turmas.map(t => t.mediaParcial).filter(x => x != null);
+    const medias = dados.turmas.map(t => statusNota(S, t).media).filter(x => x != null);
     if (medias.length) stats.push(`<div class="stat"><div class="v">${f1(medias.reduce((a, b) => a + b, 0) / medias.length)}</div><div class="k">média parcial do semestre</div></div>`);
     h += `<div class="cols"><div data-ordem="inicio:a">`;
 
@@ -164,7 +164,8 @@ var SMT = (() => {
     h += `</div><div data-ordem="inicio:b">`;
 
     if (vis('turmas')) h += `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
-      const notas = (t.unidades || []).filter(u => u.v != null).map(u => `<span class="chip">${esc(curto(u.h))}: ${f1(u.v)}</span>`).join('');
+      const fsU = fechamento(S, t), n = statusNota(S, t);
+      const notas = fsU.length ? fsU.map(u => `<span class="chip ${u.v == null ? 'gray' : u.v < S.cfg.mediaAprov ? 'bad' : ''}">${u.rot}: ${u.v != null ? f1(u.v) : 'falta lançar'}</span>`).join('') + (n.estado === 'possivel' ? `<span class="chip ${n.cls}">${esc(n.txt)}</span>` : '') : '';
       return `<div class="row"><span class="dot" style="background:${t.cor}"></span><div class="grow"><div class="b">${esc(titulo(t.nome))} <span class="fade small" style="font-weight:400">${esc(t.codigo)}</span></div><div class="muted small">${esc(t.local)} · ${esc((t.fixos || t.horarios).join(' '))}</div>${chipFaltas(t.resumo)}${notas}</div></div>`;
     }).join('') || vazio('Nenhuma turma encontrada.')}</div>`;
     if (vis('atual') && dados.atualizacoes.length) h += `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => `<div class="row"><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`).join('')}</div>`;
@@ -174,15 +175,21 @@ var SMT = (() => {
   }
 
   /* ---------------- TURMAS ---------------- */
-  /** Média atual e situação da turma (usa as avaliações da turma virtual quando houver). */
+  /**
+   * FONTE ÚNICA das notas de uma turma — todas as telas usam isto.
+   * Prioridade: plano da turma virtual ("Ver Notas": P1T, P1E, Nota da unidade…); só sem ele usa o relatório "Minhas Notas".
+   * Devolve { media, estado, precisa, txt, cls, fonte }.
+   */
   function statusNota(S, t) {
     const meta = S.cfg.mediaAprov, plano = N.planoAvaliacao(t);
-    if (t.resultado != null) return { media: t.resultado, txt: t.resultado >= meta ? 'aprovado' : 'abaixo da média', cls: t.resultado >= meta ? 'ok' : 'bad' };
+    const resultado = plano ? N.num(((t.aval.colunas || []).find(c => /^resultado$/i.test(c.h)) || {}).v) : null;
+    const final = resultado != null ? resultado : t.resultado;
+    if (final != null) return { media: final, estado: final >= meta ? 'aprovado' : 'abaixo', precisa: null, txt: final >= meta ? 'aprovado' : 'abaixo da média', cls: final >= meta ? 'ok' : 'bad', fonte: plano ? 'turma' : 'relatorio' };
     const r = plano ? N.simularPlano(plano.map(x => ({ ...x, v: x.nota })), meta) : N.simular((t.unidades || []).map(u => u.v), meta);
-    const media = r.media != null ? r.media : t.mediaParcial;
+    const media = r.media != null ? r.media : plano ? null : t.mediaParcial;
     const txt = { possivel: `precisa ${f1(r.precisa)}`, garantido: 'média garantida', aprovado: 'acima da média', abaixo: 'abaixo da média', impossivel: 'só com recuperação' }[r.estado] || (media == null ? 'sem notas ainda' : '');
     const cls = { possivel: r.precisa >= 8 ? 'warn' : '', garantido: 'ok', aprovado: 'ok', abaixo: 'bad', impossivel: 'bad' }[r.estado] || '';
-    return { media, txt, cls };
+    return { media, estado: r.estado, precisa: r.precisa, txt, cls, fonte: plano ? 'turma' : 'relatorio' };
   }
   /** Horários em texto corrido: "Seg, Qua 07:00–08:40 · Sex 13:30–15:20". */
   function horarioCurto(S, t) {
@@ -643,6 +650,8 @@ var SMT = (() => {
         <div class="acts"><label class="f">Início<input type="date" data-cfg="inicio" value="${esc(c.inicio)}"></label><label class="f">Fim<input type="date" data-cfg="fim" value="${esc(c.fim)}"></label></div></div>
       <div class="card"><h3>Dados</h3><p class="small muted" style="margin-top:0">Faça backup das suas tarefas, anotações, favoritos e do histórico de notas/faltas.</p>
         <div class="acts"><button class="btn" data-a="backup">${ic('down')} Baixar backup</button><label class="btn">Restaurar backup<input type="file" accept=".json,application/json" data-in="importar" style="display:none"></label><button class="btn dng" data-a="limpar">Apagar dados locais</button></div></div>
+      <div class="card"><h3>${ic('info')} Notas saindo erradas?</h3><p class="small muted" style="margin-top:0">Copia como o SIGAA+ leu as notas de cada turma (colunas, valores e erros) para você mandar ao desenvolvedor. Não inclui senha nem matrícula.</p>
+        <button class="btn" data-a="diag-notas">Copiar diagnóstico das notas</button></div>
     </div><div>
       <div class="card"><h3>Horário das aulas <button class="btn sm r" data-a="horas-padrao">Restaurar padrão</button></h3><p class="small muted" style="margin-top:0">Formato HH:MM-HH:MM.</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${slots.map(s => `<label class="f">${s}<input data-hora="${s}" value="${esc((c.horas || {})[s] || N.HORAS_PADRAO[s])}" pattern="\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}"></label>`).join('')}</div></div>
