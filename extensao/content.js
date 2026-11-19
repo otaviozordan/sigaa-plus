@@ -84,12 +84,11 @@
     renderUpd();
     if (!S.upd) checarUpd(false);
 
-    // convite para o LinkedIn: depois da 3ª abertura ou logo após uma atualização; some ao clicar ou por 30 dias em "Agora não"
+    // convite para o LinkedIn: sempre visível no Início
     S.cfg.aberturas = (S.cfg.aberturas || 0) + 1;
     const atualizou = S.cfg.ultimaVersao && S.versao && N.versaoMaior(S.versao, S.cfg.ultimaVersao);
     if (S.versao) S.cfg.ultimaVersao = S.versao;
-    if (!S.cfg.linkedinVisto && N.AUTOR.linkedin && !(S.cfg.conviteAdiado > Date.now()))
-      S.convite = atualizou ? 'atualizou' : S.cfg.aberturas >= 3 ? 'uso' : false;
+    S.convite = !!N.AUTOR.linkedin; // convite fixo no Início
     salvarCfg();
 
     const cache = await store.get('ultimo');
@@ -319,9 +318,7 @@
         case 'linkedin':
           window.open(N.AUTOR.linkedin, '_blank', 'noopener');
           S.cfg.linkedinVisto = true; salvarCfg();
-          if (S.convite) { S.convite = false; if (S.view === 'inicio') ir('inicio', true); }
           break;
-        case 'convite-depois': S.cfg.conviteAdiado = Date.now() + 30 * N.DIA_MS; S.convite = false; salvarCfg(); if (S.view === 'inicio') ir('inicio', true); break;
         case 'upd-depois': S.cfg.updIgnorada = S.upd && S.upd.remota; salvarCfg(); renderUpd(); break;
         case 'ini-personalizar': S.personalizando = !S.personalizando; ir('inicio', true); break;
         case 'ini-tudo': S.pessoal.inicioOcultos = []; salvarPessoal(); ir('inicio', true); break;

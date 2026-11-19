@@ -681,13 +681,11 @@ var SMT = (() => {
 
   /** Convite discreto para conhecer o autor (aparece depois de algumas aberturas ou após atualizar). */
   function conviteLinkedin(S) {
-    const A = N.AUTOR, nome = A.nome.split(' ')[0];
-    const txt = S.convite === 'atualizou'
-      ? `O SIGAA+ foi atualizado para a versão ${esc(S.versao)}. Ele é feito por ${esc(nome)}, estudante da UNIFEI.`
-      : `O SIGAA+ é gratuito e feito por ${esc(nome)}, estudante da UNIFEI. Se ele está ajudando, que tal se conectar?`;
-    return `<div class="card convite" data-id="convite"><h3>💙 Curtiu o SIGAA+?</h3><p class="small" style="margin:0 0 10px">${txt}</p>
-      <div class="acts"><button class="btn li" data-a="linkedin">${ic('link')} Conectar no LinkedIn</button><button class="btn sm" data-a="convite-depois">Agora não</button></div></div>`;
+    const nome = N.AUTOR.nome.split(' ').filter((_, k, a) => k === 0 || k === a.length - 2).join(' '); // "Otávio Zordan"
+    return `<div class="card convite" data-id="convite"><h3>💙 Curtiu o SIGAA+?</h3><p class="small" style="margin:0 0 10px">O SIGAA+ é gratuito e feito por ${esc(nome)}. Que tal se conectar?</p>
+      <div class="acts"><button class="btn li" data-a="linkedin">${ic('link')} Conectar no LinkedIn</button></div></div>`;
   }
+
 
   /* ---------------- SOBRE ---------------- */
   function vSobre(S) {
