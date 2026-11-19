@@ -449,6 +449,44 @@ var SMT = (() => {
       ${aulas.map(linha).join('') || vazio('Nenhuma data encontrada.')}</div>`;
   }
 
+  /* ---------------- CALENDÁRIO MENSAL ---------------- */
+  const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  /** Todos os compromissos com data (inclui labs passados), indexados por dia ISO. */
+  function compromissosPorDia(S) {
+    const m = new Map(), add = (d, x) => { if (!d) return; const k = isoDia(d); (m.get(k) || m.set(k, []).get(k)).push(x); };
+    S.dados.atividades.forEach(a => add(parseData(a.data), { tipo: 'sigaa', hora: a.hora, titulo: a.titulo, cat: a.tipo || 'Atividade', turma: a.disciplina, cor: corDe(S, a.disciplina) }));
+    N.aulasEmDatas(S.dados.turmas, S.cfg).forEach(a => add(a.d, { tipo: 'lab', hora: a.ini, fim: a.fim, titulo: titulo(a.t.nome), cat: 'Laboratório', turma: a.t.nome, local: a.t.local, cor: a.t.cor, code: a.code }));
+    (S.pessoal.tarefas || []).forEach(t => add(deIso(t.data), { tipo: 'tarefa', titulo: t.txt, cat: 'Tarefa', turma: t.turma, feito: t.feito, cor: t.turma ? corDe(S, t.turma) : 'var(--fade)' }));
+    m.forEach(xs => xs.sort((a, b) => String(a.hora || '99').localeCompare(String(b.hora || '99'))));
+    return m;
+  }
+  function calendarioMes(S) {
+    const hj = hoje();
+    const [ano, mes] = (S.mesCal || isoDia(hj).slice(0, 7)).split('-').map(Number);
+    const prim = new Date(ano, mes - 1, 1), ini = new Date(prim); ini.setDate(1 - prim.getDay());
+    const semanas = Math.ceil((prim.getDay() + new Date(ano, mes, 0).getDate()) / 7);
+    const porDia = compromissosPorDia(S), sel = S.diaCal || isoDia(hj);
+    const ico = { lab: '🧪', sigaa: '📝', tarefa: '✓' };
+    let cel = '';
+    for (let i = 0; i < semanas * 7; i++) {
+      const d = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() + i), k = isoDia(d), xs = porDia.get(k) || [];
+      const cls = ['cd', d.getMonth() !== mes - 1 ? 'fora' : '', k === isoDia(hj) ? 'hj' : '', k === sel ? 'sel' : '', d < hj ? 'pass' : ''].join(' ');
+      cel += `<button class="${cls}" data-a="cal-dia" data-d="${k}" title="${esc(xs.map(x => `${x.hora ? x.hora + ' ' : ''}${x.cat}: ${x.titulo}`).join('\n'))}"><span class="nd">${d.getDate()}</span>
+        ${xs.slice(0, 3).map(x => `<span class="ev ${x.tipo} ${x.feito ? 'ok' : ''}" style="--c:${x.cor}"><i></i><span>${ico[x.tipo]} ${esc(x.hora ? x.hora + ' ' : '')}${esc(x.tipo === 'lab' ? x.titulo : x.titulo)}</span></span>`).join('')}
+        ${xs.length > 3 ? `<span class="mais">+${xs.length - 3}</span>` : ''}</button>`;
+    }
+    const doDia = porDia.get(sel) || [], dSel = deIso(sel);
+    const total = [...porDia.entries()].filter(([k]) => k.startsWith(`${ano}-${String(mes).padStart(2, '0')}`)).reduce((a, [, xs]) => a + xs.length, 0);
+    return `<div class="card cal"><div class="calh"><h3 style="margin:0">${MESES[mes - 1]} ${ano}</h3><span class="small muted">${total} compromisso(s)</span>
+        <div class="acts" style="margin-left:auto"><button class="btn sm" data-a="cal-mes" data-n="-1" title="Mês anterior">‹</button><button class="btn sm" data-a="cal-hoje">Hoje</button><button class="btn sm" data-a="cal-mes" data-n="1" title="Próximo mês">›</button></div></div>
+      <div class="calg">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => `<div class="dsem">${x}</div>`).join('')}${cel}</div>
+      <div class="leg"><span>🧪 laboratório</span><span>📝 prova/atividade do SIGAA</span><span>✓ minha tarefa</span></div>
+      <div class="caldia"><div class="b" style="margin-bottom:4px">${esc(N.dataLonga(dSel))} <span class="fade small" style="font-weight:400">· ${quando(dSel)}</span></div>
+        ${doDia.length ? doDia.map(x => `<div class="row"><span class="dot" style="background:${x.cor}"></span><div class="grow"><b>${esc(x.titulo)}</b><div class="small muted">${esc(x.cat)}${x.hora ? ` · ${esc(x.hora)}${x.fim ? '–' + esc(x.fim) : ''}` : ''}${x.local ? ' · ' + esc(x.local) : ''}${x.turma && x.tipo !== 'lab' ? ' · ' + esc(titulo(x.turma)) : ''}</div></div>
+          ${dSel >= hj && !x.feito ? gbtn({ dia: dSel, ini: x.hora || '', fim: x.hora ? (x.fim || umaHoraDepois(x.hora)) : '', titulo: x.tipo === 'lab' ? x.titulo + ' (aula prática)' : x.tipo === 'sigaa' ? `${x.cat}: ${x.titulo}` : x.titulo, local: x.local || '', desc: x.turma ? titulo(x.turma) : '' }) : ''}</div>`).join('')
+          : `<p class="empty">Nada marcado. <a href="#" data-a="cal-nova" data-d="${sel}">Adicionar tarefa neste dia</a></p>`}</div></div>`;
+  }
+
   /* ---------------- AGENDA ---------------- */
   function vAgenda(S) {
     const it = itensAgenda(S), hj = hoje();
@@ -459,8 +497,9 @@ var SMT = (() => {
       <div class="grow" style="flex:1"><div class="tx b">${esc(i.titulo)}</div><div class="small muted">${i.tipo === 'sigaa' ? `<span class="chip">${esc(i.cat)}</span>` : '<span class="chip gray">minha tarefa</span>'} ${i.turma ? esc(titulo(i.turma)) : ''}</div></div>
       <div style="text-align:right" class="small">${i.d ? `<b>${fmt(i.d)}</b> ${esc(i.hora || '')}<div class="fade">${quando(i.d)}</div>` : ''}${i.d && diasAte(i.d) >= 0 && !i.feito ? `<div style="margin-top:4px">${gbtn({ dia: i.d, ini: i.hora || '', fim: i.hora ? (i.tipo === 'aula' ? i.fim : umaHoraDepois(i.hora)) : '', titulo: i.tipo === 'sigaa' ? `${i.cat}: ${i.titulo}` : i.titulo, local: i.local || '', desc: i.turma ? titulo(i.turma) : '' })}</div>` : ''}</div>${i.tipo === 'tarefa' ? `<button class="del" data-a="del-tarefa" data-id="${esc(i.id)}" title="Excluir">${ic('x')}</button>` : ''}</div>`;
     const corpo = grupos.map(([nome, f]) => { const xs = it.filter(i => !usado.has(i) && f(i)); xs.forEach(i => usado.add(i)); return xs.length ? `<div class="grp">${nome}</div>${xs.map(linha).join('')}` : ''; }).join('');
-    return `<h2>Agenda</h2><p class="sub">Provas e trabalhos do SIGAA junto com as suas próprias tarefas.</p>
-      <div class="card"><h3>${ic('mais')} Nova tarefa</h3><div class="addf"><input id="nt-txt" placeholder="Ex.: estudar para P2 de Cálculo" maxlength="200"><input id="nt-data" type="date" value="${isoDia(new Date(+hj + DIA_MS))}"><select id="nt-turma"><option value="">(sem disciplina)</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${S.turmaTarefa === t.nome ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select><button class="btn pri" data-a="add-tarefa">Adicionar</button></div></div>
+    return `<h2>Agenda</h2><p class="sub">Provas, laboratórios e as suas próprias tarefas — no calendário e em lista.</p>
+      ${calendarioMes(S)}
+      <div class="card"><h3>${ic('mais')} Nova tarefa</h3><div class="addf"><input id="nt-txt" placeholder="Ex.: estudar para P2 de Cálculo" maxlength="200"><input id="nt-data" type="date" value="${esc(S.novaData || isoDia(new Date(+hj + DIA_MS)))}"><select id="nt-turma"><option value="">(sem disciplina)</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${S.turmaTarefa === t.nome ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select><button class="btn pri" data-a="add-tarefa">Adicionar</button></div></div>
       <div class="acts" style="margin-bottom:14px"><button class="btn" data-a="ics-agenda">${ic('down')} Exportar agenda (.ics)</button></div>
       <div class="card">${corpo || vazio('Nenhuma atividade. Use o campo acima para criar a primeira tarefa.')}</div>`;
   }

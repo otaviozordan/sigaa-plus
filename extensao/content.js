@@ -274,6 +274,13 @@
         }
         case 'csv': N.baixar(`notas-${d.perfil.matricula || 'sigaa'}.csv`, N.csvNotas(d), 'text/csv;charset=utf-8'); toast('Planilha baixada.'); break;
         case 'ics-aulas': N.baixar(`aulas-${d.periodo || 'sigaa'}.ics`, N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg)), 'text/calendar'); toast('Arquivo .ics baixado — importe no Google Agenda (Configurações › Importar).'); break;
+        case 'cal-mes': {
+          const [y, m] = (S.mesCal || N.isoDia(N.hoje()).slice(0, 7)).split('-').map(Number);
+          const d2 = new Date(y, m - 1 + +el.dataset.n, 1); S.mesCal = N.isoDia(d2).slice(0, 7); S.diaCal = N.isoDia(d2); ir('agenda', true); break;
+        }
+        case 'cal-hoje': S.mesCal = ''; S.diaCal = ''; ir('agenda', true); break;
+        case 'cal-dia': S.diaCal = el.dataset.d; S.mesCal = el.dataset.d.slice(0, 7); ir('agenda', true); break;
+        case 'cal-nova': S.novaData = el.dataset.d; ir('agenda', true); setTimeout(() => { const i = $('#nt-txt'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }, 0); break;
         case 'gcal-todos': {
           const ts = el.dataset.i != null ? [d.turmas[+el.dataset.i]] : d.turmas;
           N.baixar('aulas-praticas.ics', N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg, { soDatas: true, futuras: true, turmas: ts })), 'text/calendar');

@@ -193,6 +193,23 @@ table.mini{font-size:12.5px;margin-top:4px}table.mini td,table.mini th{padding:4
 .leg{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-top:8px;flex-wrap:wrap}
 .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
+/* calendário */
+.calh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.calg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dsem{font-size:11.5px;font-weight:650;color:var(--fade);text-align:center;padding:2px 0}
+.cd{border:1px solid var(--bd);background:var(--card);border-radius:10px;min-height:86px;padding:4px 5px;text-align:left;display:flex;flex-direction:column;gap:2px;overflow:hidden;font-size:11px}
+.cd:hover{border-color:var(--bd2);background:var(--bg)}
+.cd .nd{font-size:12px;font-weight:650;color:var(--mut);width:22px;height:22px;display:grid;place-items:center;border-radius:50%;flex:none}
+.cd.fora{opacity:.4}.cd.pass .ev{opacity:.6}
+.cd.hj .nd{background:var(--ac);color:var(--act)}
+.cd.sel{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.ev{display:flex;align-items:center;gap:4px;border-radius:5px;padding:1px 4px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--tx);white-space:nowrap;min-width:0}
+.ev i{width:3px;align-self:stretch;border-radius:2px;background:var(--c);flex:none}
+.ev span{overflow:hidden;text-overflow:ellipsis}
+.ev.ok span{text-decoration:line-through;color:var(--fade)}
+.cd .mais{font-size:10.5px;color:var(--fade);padding-left:4px}
+.caldia{border-top:1px solid var(--bd);margin-top:12px;padding-top:10px}
+@media (max-width:820px){.cd{min-height:52px;align-items:center}.ev span{display:none}.ev{width:8px;height:8px;padding:0;border-radius:50%;background:var(--c)}.ev i{display:none}.cd{flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center}.cd .nd{width:100%;place-items:center}}
 /* agenda */
 .grp{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fade);margin:16px 0 4px}
 .grp:first-child{margin-top:0}
