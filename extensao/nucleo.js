@@ -26,6 +26,7 @@ var SMN = (() => {
     manifest: `https://raw.githubusercontent.com/${REPO}/main/extensao/manifest.json`,
     download: `https://github.com/${REPO}/releases/latest/download/sigaa-plus.zip`,
     novidades: `https://github.com/${REPO}/releases/latest`,
+    importarGoogle: 'https://calendar.google.com/calendar/r/settings/export',
   };
   /** "2.10.0" > "2.9.1" ? */
   const versaoMaior = (a, b) => {
@@ -170,14 +171,24 @@ var SMN = (() => {
           if (fr.doc.getElementById('formMenu')) pag = fr;
         } catch (e) { t.freqErro = e.message; dados.erros.push(`Frequência de ${titulo(t.nome)}: ${e.message}`); }
         // notas da turma (avaliações, pesos e método) — usa o menu da última página aberta
-        try {
-          progresso(`Notas da turma ${i + 1}/${dados.turmas.length}: ${titulo(t.nome)}`, (i + 2.5) / total);
-          const ln = SM.findLinkRe(pag.doc, 'formMenu', /^(ver )?notas$|minhas notas|notas da turma/);
-          if (!ln) throw new Error('menu "Ver Notas" não encontrado');
-          const nt = await postForm(pag, ln.formId, ln.params);
-          t.aval = SM.parseNotasTurma(nt.doc);
-          if (t.aval.vazio) t.avalErro = 'o professor ainda não cadastrou avaliações';
-        } catch (e) { t.avalErro = e.message; }
+        progresso(`Notas da turma ${i + 1}/${dados.turmas.length}: ${titulo(t.nome)}`, (i + 2.5) / total);
+        delete t.aval; delete t.avalErro;
+        for (const base of (pag === ava ? [ava] : [pag, ava])) {
+          try {
+            const links = SM.linksMenu(base.doc, 'formMenu');
+            const ln = links.find(l => /^(ver )?notas$|minhas notas|notas da turma|ver nota/.test(l.texto))
+              || links.find(l => /nota/.test(l.texto) && !/notic/.test(l.texto))
+              || links.find(l => /nota/i.test(l.onclick) && !/notic/i.test(l.onclick));
+            if (!ln) throw new Error('item "Ver Notas" não encontrado no menu da turma. Itens vistos: ' + (links.map(l => l.texto).slice(0, 30).join(' · ') || 'nenhum'));
+            const nt = await postForm(base, ln.jsf.formId, ln.jsf.params);
+            const av = SM.parseNotasTurma(nt.doc);
+            if (av.vazio) {
+              const tit = clean((nt.doc.querySelector('h2, h3, .descricaoOperacao, title') || {}).textContent || '').slice(0, 120);
+              throw new Error(`a página "${ln.texto}" abriu, mas sem tabela de notas${tit ? ` (título: ${tit})` : ''}`);
+            }
+            t.aval = av; delete t.avalErro; break;
+          } catch (e) { t.avalErro = e.message; }
+        }
       } catch (e) { t.freqErro = e.message; t.avalErro = e.message; dados.erros.push(`Turma ${titulo(t.nome)}: ${e.message}`); }
     }
     try { await fetchDoc(portalUrl()); } catch { }
@@ -409,12 +420,33 @@ var SMN = (() => {
     return out.sort((a, b) => a.d - b.d || (minutos(a.ini) ?? 0) - (minutos(b.ini) ?? 0));
   }
 
+  /**
+   * Agrupa as aulas em datas específicas de uma turma em eventos do Google Agenda.
+   * Datas futuras com mesmo horário e intervalo fixo (ex.: a cada 2 semanas) viram UM evento repetido
+   * (1 clique salva todas). Datas soltas viram eventos individuais.
+   */
+  function labsParaGoogle(t, cfg) {
+    const futuras = aulasEmDatas([t], cfg).filter(a => a.d >= hoje());
+    const grupos = new Map();
+    futuras.forEach(a => { const k = `${a.ini}-${a.fim}-${a.d.getDay()}`; (grupos.get(k) || grupos.set(k, []).get(k)).push(a); });
+    const base = a => ({ titulo: titulo(t.nome) + ' (aula prática)', local: t.local, desc: `${t.codigo || ''} ${a.code}`.trim(), ini: a.ini, fim: a.fim });
+    const out = [];
+    for (const xs of grupos.values()) {
+      xs.sort((a, b) => a.d - b.d);
+      const gaps = xs.slice(1).map((a, i) => Math.round((a.d - xs[i].d) / DIA_MS));
+      const regular = xs.length >= 2 && gaps.every(g => g === gaps[0]) && gaps[0] % 7 === 0;
+      if (regular) out.push({ ...base(xs[0]), dia: xs[0].d, rrule: `FREQ=WEEKLY;INTERVAL=${gaps[0] / 7};COUNT=${xs.length}`, qtd: xs.length, datas: xs.map(a => a.d) });
+      else xs.forEach(a => out.push({ ...base(a), dia: a.d, qtd: 1, datas: [a.d] }));
+    }
+    return out.sort((a, b) => a.dia - b.dia);
+  }
+
   /** op.soDatas = só as aulas em datas específicas ; op.turmas = filtra turmas */
   function eventosAulas(dados, modelo, cfg, op = {}) {
     const turmas = op.turmas || dados.turmas;
     const ev = [];
     if (op.soDatas) {
-      aulasEmDatas(turmas, cfg).forEach(a => ev.push({ dia: a.d, ini: a.ini, fim: a.fim, titulo: titulo(a.t.nome) + ' (aula prática)', local: a.t.local, desc: `${a.t.codigo || ''} ${a.code}`.trim(), alarme: a.ini ? 60 : 0 }));
+      aulasEmDatas(turmas, cfg).filter(a => !op.futuras || a.d >= hoje()).forEach(a => ev.push({ dia: a.d, ini: a.ini, fim: a.fim, titulo: titulo(a.t.nome) + ' (aula prática)', local: a.t.local, desc: `${a.t.codigo || ''} ${a.code}`.trim(), alarme: a.ini ? 60 : 0 }));
       if (!ev.length) throw new Error('nenhuma aula em data específica encontrada');
       return ev;
     }
@@ -503,7 +535,7 @@ var SMN = (() => {
   return {
     CORES, DIAS, DIA_MS, HORAS_PADRAO, HORAS_ANTIGAS, CFG_PADRAO, AUTOR, LINKS, versaoMaior, verificarAtualizacao, clean, esc, norm, busca, titulo, parseData, fmt, segunda, hoje, isoDia, deIso, atras, dataLonga,
     diasAte, quando, num, f1, f2, minutos, store, portalUrl, fetchDoc, postForm, abrirPortal, coletar, abrirTurmaNoSigaa, abrirMenuNoSigaa,
-    ehCampoNota, atualizarHistorico, colunas, montarModelo, limitesSemestre, simular, planoAvaliacao, simularPlano, aulasEmDatas, horaDo, blocos, textoHorario, aulasDoDia,
+    ehCampoNota, atualizarHistorico, colunas, montarModelo, limitesSemestre, simular, planoAvaliacao, simularPlano, aulasEmDatas, labsParaGoogle, horaDo, blocos, textoHorario, aulasDoDia,
     gerarICS, linkGoogle, eventosSemanais, eventosAulas, eventosAgenda, csvNotas, baixar, desempenho,
   };
 })();

@@ -181,6 +181,14 @@ var SM = (() => {
     return a ? jsfParams(a.getAttribute('onclick')) : null;
   }
 
+  /** Todos os links JSF de um form de menu: [{texto (normalizado), onclick, jsf}] */
+  function linksMenu(doc, formId) {
+    const form = doc.getElementById(formId);
+    if (!form) return [];
+    const norm = s => clean(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    return [...form.querySelectorAll('a[onclick]')].map(a => ({ texto: norm(a.textContent), onclick: a.getAttribute('onclick') || '', jsf: jsfParams(a.getAttribute('onclick')) })).filter(x => x.jsf && x.texto);
+  }
+
   /** Cabeçalho de tabela com colspan/rowspan -> uma lista de rótulos por coluna. */
   function cabecalhos(table) {
     const rows = [...table.querySelectorAll('thead tr')];
@@ -247,6 +255,6 @@ var SM = (() => {
     return 'ok';
   }
 
-  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, cabecalhos, parseNotasTurma };
+  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, parseNotasTurma };
 })();
 if (typeof module !== 'undefined') module.exports = SM;

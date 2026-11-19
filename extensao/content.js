@@ -274,6 +274,13 @@
         }
         case 'csv': N.baixar(`notas-${d.perfil.matricula || 'sigaa'}.csv`, N.csvNotas(d), 'text/csv;charset=utf-8'); toast('Planilha baixada.'); break;
         case 'ics-aulas': N.baixar(`aulas-${d.periodo || 'sigaa'}.ics`, N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg)), 'text/calendar'); toast('Arquivo .ics baixado — importe no Google Agenda (Configurações › Importar).'); break;
+        case 'gcal-todos': {
+          const ts = el.dataset.i != null ? [d.turmas[+el.dataset.i]] : d.turmas;
+          N.baixar('aulas-praticas.ics', N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg, { soDatas: true, futuras: true, turmas: ts })), 'text/calendar');
+          window.open(N.LINKS.importarGoogle, '_blank', 'noopener');
+          toast('No Google Agenda: "Selecionar arquivo do computador" → aulas-praticas.ics → Importar.');
+          break;
+        }
         case 'ics-datas': {
           const ts = el.dataset.i != null ? [d.turmas[+el.dataset.i]] : d.turmas;
           N.baixar(ts.length === 1 ? 'aulas-praticas-' + (ts[0].codigo || 'turma') + '.ics' : 'aulas-praticas.ics', N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg, { soDatas: true, turmas: ts })), 'text/calendar');
