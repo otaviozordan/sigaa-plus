@@ -262,7 +262,10 @@ var SMN = (() => {
     if (aulasCH) limite = Math.floor(aulasCH * (100 - (f.pctMin || 75)) / 100);
     // aulas por dia de aula (para converter "aulas" em "dias")
     const porDia = []; (t.fixos || t.horarios || []).forEach(c => { const m = /^([2-7]+)[MTN]([1-9]+)$/.exec(c); if (m) for (const _ of m[1]) porDia.push(m[2].length); });
-    const aulasDia = porDia.length ? porDia.reduce((a, b) => a + b, 0) / porDia.length : null;
+    let aulasDia = porDia.length ? porDia.reduce((a, b) => a + b, 0) / porDia.length : null;
+    // sem horário fixo: usa as aulas práticas ou a própria frequência (aulas registradas ÷ dias com registro)
+    if (!aulasDia) { const p = []; (t.aulasData || []).forEach(a => { const m = /^[2-7]+[MTN]([1-9]+)$/.exec(a.code); if (m) p.push(m[1].length); }); if (p.length) aulasDia = p.reduce((a, b) => a + b, 0) / p.length; }
+    if (!aulasDia && f) { const dias = f.registros.filter(r => r.faltas != null).length; if (dias && f.aulasRegistradas) aulasDia = f.aulasRegistradas / dias; else if (f.registros.some(r => r.faltas > 0)) aulasDia = Math.max(...f.registros.map(r => r.faltas || 0)); }
     const restam = limite != null && faltas != null ? limite - faltas : null;
     const nivel = restam == null ? 'na' : restam < 0 ? 'bad' : restam <= Math.max(2, limite * 0.25) ? 'warn' : 'ok';
     return { faltas, limite, aulasCH, restam, aulasDia, nivel, diasRestam: restam != null && aulasDia ? Math.floor(Math.max(0, restam) / aulasDia) : null };

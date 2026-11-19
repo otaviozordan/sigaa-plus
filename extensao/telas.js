@@ -352,23 +352,53 @@ var SMT = (() => {
     const { dados } = S;
     const ts = dados.turmas;
     const anteriores = dados.notas.filter(x => x.titulo !== dados.periodo || !ts.length).length;
-    return `<h2>Notas ${esc(dados.periodo)}</h2><p class="sub">Notas de cada turma, avaliação por avaliação, como aparecem na turma virtual. Notas abaixo de ${f1(S.cfg.mediaAprov)} ficam em vermelho.</p>
+    return `<h2>Notas ${esc(dados.periodo)}</h2><p class="sub">Como está cada disciplina e quanto falta para fechar a média ${f1(S.cfg.mediaAprov)}.</p>
       ${ts.length > 1 ? resumoNotas(S, ts) : ''}
       <div class="stack" data-ordem="notas">${ts.map(t => cartaoNotaTurma(S, t)).join('') || vazio('Nenhuma turma neste semestre.')}</div>
-      ${anteriores ? `<h3 style="margin:22px 0 10px;font-size:15px">Semestres anteriores</h3>
+      ${anteriores ? `<h3 style="margin:26px 0 10px;font-size:16px">Semestres anteriores</h3>
       <div class="acts" style="margin-bottom:12px"><input type="search" data-in="q-notas" placeholder="Filtrar disciplina, código ou situação…" value="${esc(S.filtroNotas || '')}" style="flex:1;min-width:220px"><button class="btn" data-a="csv">${ic('down')} Exportar histórico (CSV)</button></div>
       <div id="lista-notas">${listaNotas(S)}</div>` : ''}`;
   }
-  /** Cartão de uma turma na tela Notas: avaliações individuais da turma virtual (ou, na falta delas, as unidades do relatório). */
-  /** Resumo de todas as turmas: média, situação e quantas avaliações já saíram. Clicar leva ao cartão. */
+  /** "a", "a e b", "a, b e c" */
+  const listaE = xs => xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} e ${xs[xs.length - 1]}`;
+  /** O que ainda falta lançar na turma (abreviações das avaliações; unidade sem avaliações vira "N2"). */
+  function pendentes(S, t) {
+    const plano = N.planoAvaliacao(t);
+    if (plano) return plano.filter(x => x.nota == null && x.fixaUnid == null).map(x => x.notaUnid ? 'N' + ((/(\d+)/.exec(x.unid) || [])[1] || '') : x.abrev);
+    return fechamento(S, t).filter(u => u.v == null).map(u => u.rot);
+  }
+  /** Anel com a média (0–10) e um tracinho na média mínima. */
+  function anel(media, meta, cls) {
+    const r = 26, c = 2 * Math.PI * r, p = media == null ? 0 : Math.max(0, Math.min(1, media / 10));
+    const cor = { ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)' }[cls] || 'var(--ac)';
+    const ang = meta / 10 * 2 * Math.PI - Math.PI / 2, ponto = k => [32 + k * Math.cos(ang), 32 + k * Math.sin(ang)].map(v => v.toFixed(1));
+    const [x1, y1] = ponto(r - 6), [x2, y2] = ponto(r + 6);
+    return `<svg class="anel" viewBox="0 0 64 64" role="img" aria-label="Média ${media != null ? f1(media) : 'sem notas'} de 10">
+      <circle cx="32" cy="32" r="${r}" class="anel-f"/>
+      <circle cx="32" cy="32" r="${r}" class="anel-v" style="stroke:${cor}" stroke-dasharray="${(p * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 32 32)"/>
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="anel-m"><title>média mínima ${f1(meta)}</title></line>
+      <text x="32" y="37" text-anchor="middle" class="anel-t">${media != null ? f1(media) : '—'}</text></svg>`;
+  }
+  /** Frase direta do que fazer, a partir da fonte única de notas. */
+  function mensagemNota(S, t, n) {
+    const meta = f1(S.cfg.mediaAprov), pend = listaE(pendentes(S, t));
+    switch (n.estado) {
+      case 'possivel': return [n.precisa >= 8 ? 'warn' : 'inf', `Para fechar média ${meta}, tire pelo menos <b>${f1(n.precisa)}</b>${pend ? ` em ${esc(pend)}` : ' no que falta'}.`];
+      case 'garantido': return ['ok', `Média garantida: mesmo com 0${pend ? ` em ${esc(pend)}` : ''}, você fica acima de ${meta}. 🎉`];
+      case 'aprovado': return ['ok', `Fechou com <b>${f1(n.media)}</b>, acima da média ${meta}.`];
+      case 'abaixo': return ['bad', `Fechou com <b>${f1(n.media)}</b>, abaixo de ${meta}. Fique de olho na reposição.`];
+      case 'impossivel': return ['bad', `Nem com 10${pend ? ` em ${esc(pend)}` : ''} chega a ${meta}. A reposição é o caminho.`];
+      default: return ['inf', S.dados.parcial ? 'Carregando as notas da turma…' : 'Nenhuma nota lançada ainda.'];
+    }
+  }
+  /** Resumo em blocos: um por turma, ordenado do mais arriscado ao mais tranquilo. Clicar leva ao cartão. */
   function resumoNotas(S, ts) {
     const ordem = { bad: 0, warn: 1, '': 2, gray: 3, ok: 4 };
-    const linhas = ts.map(t => { const n = statusNota(S, t), pl0 = N.planoAvaliacao(t) || [], tot = pl0.filter(x => !x.notaUnid || x.fixaUnid == null).length, lan = pl0.filter(x => x.nota != null || x.fixaUnid != null).length; return { t, n, tot: pl0.length, lan, cls: n.cls || (n.media == null ? 'gray' : '') }; })
-      .sort((a, b) => ordem[a.cls] - ordem[b.cls]);
-    return `<div class="card rn">${linhas.map(({ t, n, tot, lan, cls }) => `<button class="rn-l" data-a="ir-nota" data-id="${esc(chaveT(t))}">
-        <span class="dot" style="background:${t.cor};margin:0"></span><span class="rn-n">${esc(titulo(t.nome))}</span>
-        <span class="rn-p small muted">${tot ? `${lan}/${tot} lançadas` : ''}</span>
-        <b class="rn-m">${n.media != null ? f1(n.media) : '—'}</b><span class="chip ${cls}">${esc(n.txt || '—')}</span></button>`).join('')}</div>`;
+    const xs = ts.map(t => { const n = statusNota(S, t); return { t, n, cls: n.cls || (n.media == null ? 'gray' : '') }; }).sort((a, b) => ordem[a.cls] - ordem[b.cls]);
+    return `<div class="rts">${xs.map(({ t, n, cls }) => `<button class="rt" data-a="ir-nota" data-id="${esc(chaveT(t))}" style="--c:${t.cor}">
+        <span class="rt-n">${esc(titulo(t.nome))}</span>
+        <span class="rt-m"><b>${n.media != null ? f1(n.media) : '—'}</b><span class="chip ${cls}">${esc(n.txt || '—')}</span></span>
+        <span class="rt-u">${fechamento(S, t).map(u => `<span class="${u.v == null ? 'fade' : u.v < S.cfg.mediaAprov ? 'err' : ''}">${u.rot} <b>${u.v != null ? f1(u.v) : '—'}</b></span>`).join('')}</span></button>`).join('')}</div>`;
   }
   /** Tabela no formato da turma virtual: Unid. 1 (P1T, P1E, Nota) | Unid. 2 (…) | Reposição | Resultado… */
   function tabelaSigaa(S, t) {
@@ -381,15 +411,16 @@ var SMT = (() => {
     if (!cols.length) return '';
     const nomeAval = c => { const av = (a.avals || []).find(x => x.abrev === c.h); return (av && av.nome && av.nome !== c.h ? av.nome : '') || c.title || ''; };
     const grupos = []; cols.forEach(c => { const g = grupos[grupos.length - 1]; if (g && c.grupo && g.grupo === c.grupo) g.cols.push(c); else grupos.push({ grupo: c.grupo, cols: [c] }); });
+    let ku = 0; grupos.forEach(g => { g.u = g.grupo ? 'u' + (ku++ % 2) : ''; g.cols.forEach(c => { c._u = g.u; }); });
     const ehNota = c => /^(nota|m[ée]dia|resultado)$/i.test(c.h);
     const cel = c => {
       const v = N.num(c.v), baixa = v != null && v < meta;
       const it = itemDe(c), pend = !c.v && alvo != null && it && it.nota == null && it.fixaUnid == null && (!ehNota(c) || it.notaUnid);
-      return `<td class="n ${ehNota(c) ? 'nu' : ''} ${baixa ? 'baixa' : ''}" title="${esc([nomeAval(c), baixa ? 'abaixo da média' : '', pend ? `precisa de pelo menos ${f1(alvo)} para fechar média ${f1(meta)}` : ''].filter(Boolean).join(' · '))}">${c.v ? esc(c.v) + (baixa ? '<span class="sr"> (abaixo da média)</span>' : '') : pend ? `<span class="meta">≥ ${f1(alvo)}</span>` : '<span class="fade">—</span>'}</td>`;
+      return `<td class="n ${c._u} ${ehNota(c) ? 'nu' : ''} ${baixa ? 'baixa' : ''}" title="${esc([nomeAval(c), baixa ? 'abaixo da média' : '', pend ? `precisa de pelo menos ${f1(alvo)} para fechar média ${f1(meta)}` : ''].filter(Boolean).join(' · '))}">${c.v ? esc(c.v) + (baixa ? '<span class="sr"> (abaixo da média)</span>' : '') : pend ? `<span class="meta">≥ ${f1(alvo)}</span>` : '<span class="fade">—</span>'}</td>`;
     };
     return `<div class="tw"><table class="tsig">
-      <thead><tr>${grupos.map(g => g.grupo ? `<th colspan="${g.cols.length}" class="g">${esc(g.grupo)}</th>` : `<th rowspan="2" class="g">${esc(g.cols[0].h)}</th>`).join('')}</tr>
-        <tr>${grupos.filter(g => g.grupo).flatMap(g => g.cols).map(c => { const it = itemDe(c), p = it && !it.notaUnid && plano.some(x => x.unid === c.grupo && x !== it && x.peso !== it.peso) ? it.peso : null; return `<th class="${ehNota(c) ? 'nu' : ''}" title="${esc([nomeAval(c), p && it.pesoEstimado ? `peso deduzido das notas da ${it.pesoEstimado}` : ''].filter(Boolean).join(' · '))}">${esc(c.h)}${p ? `<small class="peso">${it.pesoEstimado ? '≈' : ''}peso ${esc(String(p).replace('.', ','))}</small>` : ''}</th>`; }).join('')}</tr></thead>
+      <thead><tr>${grupos.map(g => g.grupo ? `<th colspan="${g.cols.length}" class="g ${g.u}">${esc(g.grupo)}</th>` : `<th rowspan="2" class="g">${esc(g.cols[0].h)}</th>`).join('')}</tr>
+        <tr>${grupos.filter(g => g.grupo).flatMap(g => g.cols).map(c => { const it = itemDe(c), p = it && !it.notaUnid && plano.some(x => x.unid === c.grupo && x !== it && x.peso !== it.peso) ? it.peso : null; return `<th class="${c._u} ${ehNota(c) ? 'nu' : ''}" title="${esc([nomeAval(c), p && it.pesoEstimado ? `peso deduzido das notas da ${it.pesoEstimado}` : ''].filter(Boolean).join(' · '))}">${esc(c.h)}${p ? `<small class="peso">${it.pesoEstimado ? '≈' : ''}peso ${esc(String(p).replace('.', ','))}</small>` : ''}</th>`; }).join('')}</tr></thead>
       <tbody><tr>${grupos.flatMap(g => g.cols).map(cel).join('')}</tr></tbody></table></div>`;
   }
   /** Plano de avaliações da turma (tabela no formato da turma virtual + dicas), ou as unidades do relatório. */
@@ -421,14 +452,24 @@ var SMT = (() => {
   }
   function cartaoNotaTurma(S, t) {
     const temAval = t.aval && !t.aval.vazio && (t.aval.colunas || []).length;
-    const n = statusNota(S, t);
+    const n = statusNota(S, t), [mcls, msg] = mensagemNota(S, t, n);
+    const pl0 = N.planoAvaliacao(t) || [], lan = pl0.filter(x => x.nota != null || x.fixaUnid != null).length;
     const sit = t.situacao && !/matric/i.test(t.situacao) ? `<span class="sit ${sitClass(t.situacao)}">${esc(t.situacao)}</span>` : '';
-    const corpo = corpoNotas(S, t);
-    return `<div class="card nt-card" data-id="${esc(chaveT(t))}" style="border-left:4px solid ${t.cor}">
-      <div class="nt-h"><div><h3 style="margin:0">${esc(titulo(t.nome))}</h3><div class="small muted">${[t.codigo, t.resumo && t.resumo.faltas != null ? pl(t.resumo.faltas, 'falta') : ''].filter(Boolean).map(esc).join(' · ')} ${sit}</div></div>
-        <div class="nt-m"><span class="small muted">Média</span><b>${n.media != null ? f1(n.media) : '—'}</b>${n.txt ? `<span class="chip ${n.cls || 'gray'}">${esc(n.txt)}</span>` : ''}</div></div>
+    const est = pl0.find(x => x.pesoEstimado), infos = temAval ? (t.aval.infos || []) : [];
+    const meta = [t.codigo, pl0.length ? `${lan} de ${pl0.length} lançadas` : '', t.resumo && t.resumo.faltas != null ? pl(t.resumo.faltas, 'falta') : ''].filter(Boolean).map(esc).join(' · ');
+    const corpo = temAval ? tabelaSigaa(S, t) : corpoNotas(S, t);
+    const notas = [est ? `Pesos com ≈ foram deduzidos das notas da ${esc(est.pesoEstimado)} — o SIGAA não informa.` : ''].filter(Boolean);
+    return `<div class="card nt2" data-id="${esc(chaveT(t))}" style="--c:${t.cor}">
+      <div class="nt2-h">
+        <div class="nt2-t"><h3>${esc(titulo(t.nome))}</h3><div class="small muted">${meta} ${sit}</div>
+          <a href="#" class="small nt2-link" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">Abrir turma virtual ↗</a></div>
+        ${anel(n.media, S.cfg.mediaAprov, n.cls)}
+      </div>
+      <div class="nt2-msg ${mcls}">${ic(mcls === 'ok' ? 'notas' : mcls === 'bad' ? 'alerta' : 'info')}<span>${msg}</span></div>
       ${corpo}
-      <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">${ic('ext')} Abrir turma virtual</button></div></div>`;
+      ${notas.length ? `<div class="small fade" style="margin-top:8px">${notas.join(' ')}</div>` : ''}
+      ${infos.length ? `<details class="small" style="margin-top:8px"><summary class="muted"><span class="arr">▶</span> Como o professor calcula a média</summary>${infos.map(x => `<div class="res inf" style="padding:6px 10px;margin-top:4px">${esc(x)}</div>`).join('')}</details>` : ''}
+    </div>`;
   }
   function listaNotas(S) {
     const { dados, modelo } = S, q = busca(S.filtroNotas || '');
