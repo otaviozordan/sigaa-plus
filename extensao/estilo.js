@@ -341,6 +341,27 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .fx-det{display:flex;gap:18px;align-items:flex-start;padding:4px 18px 16px;border-top:1px dashed var(--bd);margin:0 16px;padding-top:14px}
 .fx-txt{flex:1;display:flex;flex-direction:column;gap:4px}
 @media (max-width:820px){.fx>summary{grid-template-columns:minmax(0,1fr) auto 14px;row-gap:8px}.fx-v{grid-column:1/-1;grid-row:2}.fx-det{flex-direction:column;margin:0 10px}}
+/* faltas — cartões */
+.fx2-sec{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:750;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:18px 0 10px}
+.fx2-sec span{background:var(--bg2);border-radius:99px;padding:0 8px;font-size:12px;letter-spacing:0}
+.fx2-sec.warn{color:var(--warn)}.fx2-sec.warn span{background:var(--warnb)}
+.fx2-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.fx2{background:var(--card);border:1px solid var(--bd);border-top:4px solid var(--c);border-radius:14px;box-shadow:var(--sh);transition:box-shadow .15s}
+.fx2:hover{box-shadow:var(--shl)}
+.fx2[open]{grid-column:1/-1}
+.fx2>summary{display:flex;flex-direction:column;gap:10px;padding:14px 16px;cursor:pointer;list-style:none}
+.fx2-h{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.fx2-nome{font-weight:650;font-size:15px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.fx2 .seta{font-size:22px;line-height:1;color:var(--fade);transition:transform .15s}.fx2[open] .seta{transform:rotate(90deg);color:var(--ac)}
+.fx2-m{display:flex;align-items:center;gap:12px}
+.fx2-m b{font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.fx2-m span{font-size:13px;color:var(--mut);line-height:1.3}
+.fx2-m.ok b{color:var(--ok)}.fx2-m.warn b{color:var(--warn)}.fx2-m.bad b{color:var(--bad)}
+.fx2 .vidas i{max-width:none}
+.fx2-f{font-size:12.5px;color:var(--fade)}
+.fx2-det{display:flex;gap:18px;align-items:flex-start;margin:0 16px;padding:14px 0 16px;border-top:1px dashed var(--bd)}
+.vidas i.u{background:color-mix(in srgb,var(--tx) 45%,transparent)}
+@media (max-width:820px){.fx2-grid{grid-template-columns:1fr}.fx2-det{flex-direction:column}}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

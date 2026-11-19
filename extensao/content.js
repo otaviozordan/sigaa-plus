@@ -308,7 +308,7 @@
           toast('Arquivo .ics baixado — abra-o ou importe no Google Agenda.'); break;
         }
         case 'ics-agenda': N.baixar('agenda-sigaa.ics', N.gerarICS(N.eventosAgenda(d, S.pessoal)), 'text/calendar'); toast('Agenda exportada.'); break;
-        case 'ir-nota': { const x = [...root.querySelectorAll('.nt-card[data-id]')].find(y => y.dataset.id === el.dataset.id); if (x) { x.scrollIntoView({ block: 'start' }); x.classList.add('pisca'); setTimeout(() => x.classList.remove('pisca'), 1200); } break; }
+        case 'ir-nota': { const x = [...root.querySelectorAll('main .stack > [data-id]')].find(y => y.dataset.id === el.dataset.id); if (x) { x.scrollIntoView({ block: 'start', behavior: 'smooth' }); x.classList.add('pisca'); setTimeout(() => x.classList.remove('pisca'), 1200); } break; }
         case 'tarefa-turma': S.turmaTarefa = d.turmas[+el.dataset.i].nome; ir('agenda'); setTimeout(() => { const i = $('#nt-txt'); i && i.focus(); }, 0); break;
         case 'add-tarefa': {
           const txt = $('#nt-txt').value.trim(); if (!txt) { $('#nt-txt').focus(); return; }

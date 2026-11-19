@@ -294,28 +294,30 @@ var SMT = (() => {
     const linha = t => {
       const r = t.resumo || {}, f = t.freq, cls = r.nivel === 'bad' ? 'bad' : r.nivel === 'warn' ? 'warn' : r.nivel === 'ok' ? 'ok' : '';
       const diasF = f ? f.registros.filter(x => x.faltas > 0).length : 0;
-      const big = r.restam == null ? `<b>${r.faltas ?? '—'}</b><span>${r.faltas === 1 ? 'falta' : 'faltas'}</span>`
-        : r.restam < 0 ? `<b>−${-r.restam}</b><span>passou do limite</span>`
-        : `<b>+${r.restam}</b><span>${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` · ≈${pl(r.diasRestam, 'dia')}` : ''}</span>`;
+      const pct = f && f.aulasRegistradas ? Math.round(100 * f.presencas / f.aulasRegistradas) : null;
+      const big = r.restam == null ? (r.faltas == null ? `<b>—</b><span>sem dados<br>de frequência</span>` : `<b>${r.faltas}</b><span>${r.faltas === 1 ? 'falta' : 'faltas'}</span>`)
+        : r.restam < 0 ? `<b>−${-r.restam}</b><span>passou do<br>limite de faltas</span>`
+        : r.restam === 0 ? `<b>0</b><span>não pode mais<br>faltar nesta</span>`
+        : `<b>+${r.restam}</b><span>pode faltar ${r.restam === 1 ? '1 aula' : `${r.restam} aulas`}${r.diasRestam != null ? `<br>≈ ${pl(r.diasRestam, 'dia')} de aula` : ''}</span>`;
       const porMes = []; (f ? f.registros : []).forEach(x => { const d = parseData(x.data); if (!d) return; let g = porMes[porMes.length - 1]; if (!g || g.m !== d.getMonth()) porMes.push(g = { m: d.getMonth(), xs: [] }); g.xs.push({ ...x, d }); });
       const grade = porMes.length ? `<div class="fmeses">${porMes.map(g => `<div class="fmes"><span class="fm">${MES[g.m]}</span><div class="fdias">${g.xs.map(x => {
         const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`];
         const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`;
         return `<span class="fd ${x.faltas == null ? 'nr' : x.faltas ? 'f' : 'p'}" title="${esc(tip)}">${x.d.getDate()}${x.faltas ? `<sup>${x.faltas}</sup>` : ''}</span>`;
       }).join('')}</div></div>`).join('')}</div>` : '';
-      const pct = f && f.aulasRegistradas ? Math.round(100 * f.presencas / f.aulasRegistradas) : null;
       const frases = [
         r.restam != null && r.restam >= 0 ? `Ainda pode faltar <b>${pl(r.restam, 'aula')}</b>${r.diasRestam != null ? ` — cerca de <b>${pl(r.diasRestam, 'dia')} de aula</b>` : ''}.` : r.restam < 0 ? `<b class="err">Passou ${pl(-r.restam, 'aula')} do limite de ${r.limite}.</b>` : '',
         r.faltas === 0 ? 'Nenhuma falta até agora. 👏' : r.faltas != null ? `Faltou <b>${pl(r.faltas, 'aula')}</b>${diasF ? ` em ${pl(diasF, 'dia')}` : ''}${r.limite != null ? ` de ${r.limite} permitidas` : ''}.` : '',
         f && f.aulasRegistradas ? `${f.presencas} de ${f.aulasRegistradas} aulas registradas${f.aulasCH ? ` · ${f.aulasCH} no semestre` : ''}.` : '',
       ].filter(Boolean);
-      return `<details class="fx ${cls}" style="--c:${t.cor}"><summary>
-          <span class="fx-n"><b>${esc(titulo(t.nome))}</b><small>${esc([t.codigo, horarioCurto(S, t)].filter(Boolean).join(' · '))}</small></span>
-          <span class="fx-v">${vidas(r)}<small>${r.faltas != null ? `${r.faltas} de ${r.limite ?? '?'} faltas usadas` : esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros ainda'))}</small></span>
-          <span class="fx-b ${cls}">${big}</span>
-          <span class="seta" aria-hidden="true">›</span>
+      const sub = r.faltas == null ? esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros ainda')) : [`${r.faltas} de ${r.limite ?? '?'} faltas usadas`, pct != null ? `${pct}% de presença` : ''].filter(Boolean).join(' · ');
+      return `<details class="fx2 ${cls}" style="--c:${t.cor}"><summary>
+          <div class="fx2-h"><span class="fx2-nome">${esc(titulo(t.nome))}</span><span class="seta" aria-hidden="true">›</span></div>
+          <div class="fx2-m ${cls}">${big}</div>
+          ${vidas(r)}
+          <div class="fx2-f">${sub}</div>
         </summary>
-        <div class="fx-det">${pct != null ? anelPct(pct, cls) : ''}<div class="fx-txt small">${frases.map(x => `<div>${x}</div>`).join('') || `<div class="muted">${esc(t.freqErro || 'Sem registros de frequência ainda.')}</div>`}${grade}</div></div></details>`;
+        <div class="fx2-det">${pct != null ? anelPct(pct, cls) : ''}<div class="fx-txt small">${frases.map(x => `<div>${x}</div>`).join('') || `<div class="muted">${esc(t.freqErro || 'Sem registros de frequência ainda.')}</div>`}${grade}</div></div></details>`;
     };
     return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Cada bloquinho é uma falta permitida (limite de 25% das aulas). Toque numa disciplina para ver dia a dia.</p>
       <div class="fx-top">
@@ -323,7 +325,11 @@ var SMT = (() => {
         ${regs ? `<div><b>${Math.round(100 * pres / regs)}%</b><span>de presença<br>no semestre</span></div>` : ''}
         <div class="${risco ? 'warn' : 'ok'}"><b>${risco}</b><span>${risco === 1 ? 'disciplina perto' : 'disciplinas perto'}<br>do limite</span></div>
       </div>
-      <div class="fx-lista">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
+      ${(() => {
+        const grupo = (nome, xs, cls) => xs.length ? `<div class="fx2-sec ${cls}">${nome} <span>${xs.length}</span></div><div class="fx2-grid">${xs.map(linha).join('')}</div>` : '';
+        const atencao = ts.filter(t => ['bad', 'warn'].includes(t.resumo?.nivel)), ok = ts.filter(t => t.resumo?.nivel === 'ok'), sem = ts.filter(t => !['bad', 'warn', 'ok'].includes(t.resumo?.nivel));
+        return grupo('Precisam de atenção', atencao, 'warn') + grupo(atencao.length ? 'Tranquilas' : 'Todas tranquilas', ok, 'ok') + grupo('Sem dados de frequência', sem, '') || vazio('Nenhuma turma.');
+      })()}
       <p class="small fade leg-f"><span class="fd p">5</span> presente <span class="fd f">5<sup>2</sup></span> faltou (nº de aulas perdidas) <span class="fd nr">5</span> ainda sem registro</p>`;
   }
 
