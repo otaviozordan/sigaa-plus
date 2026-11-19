@@ -312,24 +312,20 @@ var SMT = (() => {
       ].filter(Boolean);
       const sub = r.faltas == null ? esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros ainda')) : [`${r.faltas} de ${r.limite ?? '?'} faltas usadas`, pct != null ? `${pct}% de presença` : ''].filter(Boolean).join(' · ');
       return `<details class="fx2 ${cls}" style="--c:${t.cor}"><summary>
-          <div class="fx2-h"><span class="fx2-nome">${esc(titulo(t.nome))}</span><span class="seta" aria-hidden="true">›</span></div>
+          <div class="fx2-h"><span class="fx2-nome">${esc(titulo(t.nome))}</span><small>${esc([t.codigo, horarioCurto(S, t)].filter(Boolean).join(' · '))}</small></div>
+          <div class="fx2-v">${vidas(r)}<div class="fx2-f">${sub}</div></div>
           <div class="fx2-m ${cls}">${big}</div>
-          ${vidas(r)}
-          <div class="fx2-f">${sub}</div>
+          <span class="seta" aria-hidden="true">›</span>
         </summary>
         <div class="fx2-det">${pct != null ? anelPct(pct, cls) : ''}<div class="fx-txt small">${frases.map(x => `<div>${x}</div>`).join('') || `<div class="muted">${esc(t.freqErro || 'Sem registros de frequência ainda.')}</div>`}${grade}</div></div></details>`;
     };
-    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Cada bloquinho é uma falta permitida (limite de 25% das aulas). Toque numa disciplina para ver dia a dia.</p>
+    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Da disciplina com menos folga para a com mais. Cada bloquinho é uma falta permitida (25% das aulas); toque numa disciplina para ver dia a dia.</p>
       <div class="fx-top">
         <div><b>${total}</b><span>${total === 1 ? 'aula perdida' : 'aulas perdidas'}${totalDias ? `<br>em ${pl(totalDias, 'dia')}` : ''}</span></div>
         ${regs ? `<div><b>${Math.round(100 * pres / regs)}%</b><span>de presença<br>no semestre</span></div>` : ''}
         <div class="${risco ? 'warn' : 'ok'}"><b>${risco}</b><span>${risco === 1 ? 'disciplina perto' : 'disciplinas perto'}<br>do limite</span></div>
       </div>
-      ${(() => {
-        const grupo = (nome, xs, cls) => xs.length ? `<div class="fx2-sec ${cls}">${nome} <span>${xs.length}</span></div><div class="fx2-grid">${xs.map(linha).join('')}</div>` : '';
-        const atencao = ts.filter(t => ['bad', 'warn'].includes(t.resumo?.nivel)), ok = ts.filter(t => t.resumo?.nivel === 'ok'), sem = ts.filter(t => !['bad', 'warn', 'ok'].includes(t.resumo?.nivel));
-        return grupo('Precisam de atenção', atencao, 'warn') + grupo(atencao.length ? 'Tranquilas' : 'Todas tranquilas', ok, 'ok') + grupo('Sem dados de frequência', sem, '') || vazio('Nenhuma turma.');
-      })()}
+      <div class="fx2-lista">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
       <p class="small fade leg-f"><span class="fd p">5</span> presente <span class="fd f">5<sup>2</sup></span> faltou (nº de aulas perdidas) <span class="fd nr">5</span> ainda sem registro</p>`;
   }
 

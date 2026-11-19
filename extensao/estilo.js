@@ -362,6 +362,18 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .fx2-det{display:flex;gap:18px;align-items:flex-start;margin:0 16px;padding:14px 0 16px;border-top:1px dashed var(--bd)}
 .vidas i.u{background:color-mix(in srgb,var(--tx) 45%,transparent)}
 @media (max-width:820px){.fx2-grid{grid-template-columns:1fr}.fx2-det{flex-direction:column}}
+/* faltas — uma por linha */
+.fx2-lista{display:flex;flex-direction:column;gap:10px}
+.fx2-lista .fx2{border-top:1px solid var(--bd);border-left:5px solid var(--c)}
+.fx2-lista .fx2>summary{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(170px,1fr) 210px 16px;gap:18px;align-items:center;flex-direction:initial}
+.fx2-lista .fx2-h{flex-direction:column;align-items:flex-start;gap:2px;justify-content:center}
+.fx2-lista .fx2-nome{min-height:0;-webkit-line-clamp:1}
+.fx2-lista .fx2-h small{font-size:12.5px;color:var(--fade)}
+.fx2-v{display:flex;flex-direction:column;gap:6px}
+.fx2-lista .fx2-m{justify-content:flex-end}
+.fx2-lista .fx2-m b{font-size:34px}
+.fx2-lista .fx2[open]{grid-column:auto}
+@media (max-width:820px){.fx2-lista .fx2>summary{grid-template-columns:minmax(0,1fr) auto 14px;row-gap:10px}.fx2-lista .fx2-v{grid-column:1/-1;grid-row:2}}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}
