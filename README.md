@@ -42,7 +42,7 @@ Busca rápida com **Ctrl+K**, teclas **1–9** trocam de tela, **R** atualiza. C
 
 - Código em `extensao/` (Manifest V3, sem dependências nem build):
   `parsers.js` lê as páginas do SIGAA · `nucleo.js` busca e cálculos · `telas.js` as telas · `estilo.js` o visual · `content.js` o painel.
-- **Publicar uma versão:** aumente `"version"` em `extensao/manifest.json` e faça push na `main`. O GitHub Actions gera o Release com o `.zip`, e as extensões instaladas passam a mostrar o aviso de atualização.
+- **Publicar uma versão:** aumente `"version"` em `extensao/manifest.json` e rode `.\publicar.ps1 "o que mudou"` (commit, push, `.zip` e Release). Com o GitHub Actions ativo, basta o push na `main`. As extensões instaladas passam a mostrar o aviso de atualização.
 
 ## Autor
 
