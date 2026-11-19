@@ -28,8 +28,8 @@ Suas tarefas, anotações e ajustes continuam salvos.
 |---|---|
 | **Início** | aulas de hoje (destaca a de agora), próximas provas, alertas de falta/nota, novidades da semana, IRA e % do curso |
 | **Turmas** | notas por avaliação e método do professor, faltas, anotações pessoais, abrir turma virtual, adicionar ao Google Agenda |
-| **Agenda** | calendário mensal navegável + lista com provas, laboratórios e suas tarefas, filtros por tipo e turma, botão "Google Agenda" em cada item e "salvar todos os labs" |
-| **Horário** | grade com os horários da UNIFEI, aula atual em destaque, laboratórios por data, exportação `.ics` |
+| **Agenda** | calendário mensal navegável + lista com provas, atividades, aulas práticas e suas tarefas, filtros por tipo e turma, botão "Google Agenda" em cada item e "salvar todas as aulas práticas" |
+| **Horário** | grade com os horários da UNIFEI, aula atual em destaque, aulas práticas (quantas faltam), exportação `.ics` |
 | **Faltas** | quanto ainda pode faltar (em aulas e em dias), % de presença, mapa aula por aula |
 | **Notas** | notas de cada turma avaliação por avaliação (pesos e nota da unidade) + histórico dos semestres anteriores |
 | **Simulador** | quanto precisa tirar, usando os pesos de cada avaliação |

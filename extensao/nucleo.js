@@ -459,7 +459,7 @@ var SMN = (() => {
       }
       for (const a of (t.aulasData || [])) for (const b of blocos(a.code)) {
         const d = parseData(a.data); if (!d || d.getDay() + 1 !== b.dia) continue;
-        ev.push({ dia: d, ini: horaDo(cfg, b.turno + b.slots[0]).ini, fim: horaDo(cfg, b.turno + b.slots[b.slots.length - 1]).fim, titulo: titulo(t.nome) + ' (lab)', local: t.local, alarme: 30 });
+        ev.push({ dia: d, ini: horaDo(cfg, b.turno + b.slots[0]).ini, fim: horaDo(cfg, b.turno + b.slots[b.slots.length - 1]).fim, titulo: titulo(t.nome) + ' (aula prática)', local: t.local, alarme: 30 });
       }
     }
     return ev;

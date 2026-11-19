@@ -195,6 +195,31 @@ table.mini{font-size:12.5px;margin-top:4px}table.mini td,table.mini th{padding:4
 .leg{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-top:8px;flex-wrap:wrap}
 .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
+/* turmas */
+.tc .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.kpi{background:var(--bg);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column;line-height:1.25}
+.kpi .k{font-size:12.5px;color:var(--mut);font-weight:600}
+.kpi .v{font-size:26px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0}
+.kpi .v small{font-size:15px;color:var(--fade);font-weight:600}
+.kpi .s{font-size:13px;font-weight:600;color:var(--mut)}
+.kpi .s.ok{color:var(--ok)}.kpi .s.warn{color:var(--warn)}.kpi .s.bad{color:var(--bad)}
+.tc .small svg.i{width:15px;height:15px;vertical-align:-3px;color:var(--fade)}
+details.mais{margin-top:12px;border-top:1px solid var(--bd);padding-top:10px}
+details.mais>summary{color:var(--ac)}
+.sec-t{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fade);margin:14px 0 6px}
+/* faltas */
+.flist{padding:4px 6px}
+.frow{border-top:1px solid var(--bd)}.frow:first-child{border-top:0}
+.frow>summary{display:grid;grid-template-columns:12px minmax(0,1fr) minmax(80px,180px) 54px auto;gap:12px;align-items:center;padding:12px 10px;border-radius:10px}
+.frow>summary:hover{background:var(--bg)}
+.frow .fn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .fq{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.frow .chip{margin:0;justify-self:end}
+.fdet{padding:0 10px 14px 34px;display:flex;flex-direction:column;gap:4px}
+@media (max-width:820px){.frow>summary{grid-template-columns:12px minmax(0,1fr) auto;row-gap:6px}.frow .fb{grid-column:2/4}.frow .fq{display:none}.fdet{padding-left:10px}}
+.passadas{margin-top:12px;border-top:1px dashed var(--bd2);padding-top:8px}
+.passadas>summary{list-style:none;color:var(--mut)}
+.passadas .row,.passadas .task{opacity:.65}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

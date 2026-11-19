@@ -13,7 +13,7 @@ com tema claro/escuro, que funciona também no celular/tela pequena:
     suas anotações pessoais e botão para abrir a turma virtual direto
   - Agenda: atividades do SIGAA + suas próprias tarefas (com data e disciplina), agrupadas em
     Atrasadas / Hoje / Amanhã / Próximos 7 dias...
-  - Horário: grade com os horários reais, marca o dia e a aula atual, laboratórios por data,
+  - Horário: grade com os horários reais, marca o dia e a aula atual, aulas práticas por data,
     e EXPORTA PARA O GOOGLE AGENDA / OUTLOOK (.ics) com lembrete 10 min antes
   - Faltas: quanto ainda pode faltar (em aulas e em dias de aula), % de presença, mapa aula por aula
   - Notas: todos os semestres, filtro rápido, notas abaixo da média em vermelho, "novo" nas

@@ -308,6 +308,7 @@
           toast('Arquivo .ics baixado — abra-o ou importe no Google Agenda.'); break;
         }
         case 'ics-agenda': N.baixar('agenda-sigaa.ics', N.gerarICS(N.eventosAgenda(d, S.pessoal)), 'text/calendar'); toast('Agenda exportada.'); break;
+        case 'simular-turma': { const id = T.chaveT(d.turmas[+el.dataset.i]); ir('simulador'); setTimeout(() => { const x = [...root.querySelectorAll('.sim[data-id]')].find(y => y.dataset.id === id); if (x) { x.scrollIntoView({ block: 'center' }); const inp = x.querySelector('input:not([readonly])'); if (inp) inp.focus(); } }, 30); break; }
         case 'tarefa-turma': S.turmaTarefa = d.turmas[+el.dataset.i].nome; ir('agenda'); setTimeout(() => { const i = $('#nt-txt'); i && i.focus(); }, 0); break;
         case 'add-tarefa': {
           const txt = $('#nt-txt').value.trim(); if (!txt) { $('#nt-txt').focus(); return; }
@@ -437,7 +438,7 @@
       { ic: 'refresh', label: 'Atualizar dados do SIGAA', tag: 'ação', run: () => atualizar(true) },
       { ic: 'lua', label: 'Alternar tema claro/escuro', tag: 'ação', run: () => acionar('tema') },
       { ic: 'down', label: 'Exportar aulas para Google Agenda (.ics)', tag: 'ação', run: () => acionar('ics-aulas') },
-      { ic: 'down', label: 'Exportar aulas em datas específicas / laboratórios (.ics)', tag: 'ação', run: () => acionar('ics-datas') },
+      { ic: 'down', label: 'Exportar aulas práticas (.ics)', tag: 'ação', run: () => acionar('ics-datas') },
       { ic: 'down', label: 'Exportar agenda/provas (.ics)', tag: 'ação', run: () => acionar('ics-agenda') },
       { ic: 'down', label: 'Exportar notas (CSV)', tag: 'ação', run: () => acionar('csv') },
       { ic: 'down', label: 'Baixar backup dos meus dados', tag: 'ação', run: () => acionar('backup') },

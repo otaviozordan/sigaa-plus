@@ -78,10 +78,18 @@ var SMT = (() => {
     return out;
   }
 
+  /** Itens do SIGAA: prova (avaliação, exame, P1…) ou atividade (tarefa, questionário, trabalho…). */
+  const tipoSigaa = a => /prova|avalia|exame|teste|\bp\s?\d\b|recupera|simulado/i.test(`${a.tipo || ''} ${a.titulo || ''}`) ? 'prova' : 'atividade';
+  const ehSigaa = x => x.tipo === 'prova' || x.tipo === 'atividade';
+  const ROT = { prova: 'Prova', atividade: 'Atividade', lab: 'Aula prática', aula: 'Aula prática', tarefa: 'Minha tarefa' };
+  const ICO = { prova: '📝', atividade: '📌', lab: '🧪', aula: '🧪', tarefa: '✓' };
+  const CHIP = { prova: 'bad', atividade: '', lab: 'warn', aula: 'warn', tarefa: 'gray' };
+  const chipTipo = x => `<span class="chip ${CHIP[x.tipo] || ''}">${ICO[x.tipo] || ''} ${ROT[x.tipo] || esc(x.cat || '')}</span>`;
+
   /** Itens de agenda: atividades do SIGAA + tarefas pessoais. */
   function itensAgenda(S) {
-    const it = S.dados.atividades.map(a => ({ tipo: 'sigaa', d: parseData(a.data), hora: a.hora, titulo: a.titulo, cat: a.tipo || 'Atividade', turma: a.disciplina, cor: corDe(S, a.disciplina) }))
-      .concat(N.aulasEmDatas(S.dados.turmas, S.cfg).filter(a => a.d >= hoje()).map(a => ({ tipo: 'aula', d: a.d, hora: a.ini, fim: a.fim, local: a.t.local, titulo: `Aula prática — ${titulo(a.t.nome)}`, cat: 'Aula em data específica', turma: a.t.nome, cor: a.t.cor })))
+    const it = S.dados.atividades.map(a => ({ tipo: tipoSigaa(a), d: parseData(a.data), hora: a.hora, titulo: a.titulo, cat: ROT[tipoSigaa(a)], sub: a.tipo, turma: a.disciplina, cor: corDe(S, a.disciplina) }))
+      .concat(N.aulasEmDatas(S.dados.turmas, S.cfg).filter(a => a.d >= hoje()).map(a => ({ tipo: 'aula', d: a.d, hora: a.ini, fim: a.fim, local: a.t.local, titulo: `Aula prática — ${titulo(a.t.nome)}`, cat: 'Aula prática', turma: a.t.nome, cor: a.t.cor })))
       .concat((S.pessoal.tarefas || []).map(t => ({ tipo: 'tarefa', id: t.id, d: deIso(t.data), titulo: t.txt, cat: 'Tarefa', turma: t.turma, feito: t.feito, cor: t.turma ? corDe(S, t.turma) : 'var(--fade)' })));
     return it.sort((a, b) => (a.d ? +a.d : 9e15) - (b.d ? +b.d : 9e15) || String(a.hora || '').localeCompare(String(b.hora || '')));
   }
@@ -123,7 +131,7 @@ var SMT = (() => {
     if (!aulas.length || aulas.every(a => N.minutos(a.fim) < agoraMin)) { for (let i = 1; i < 7 && !amanha; i++) { const d = new Date(+hj + i * DIA_MS); const x = N.aulasDoDia(dados.turmas, d, S.cfg); if (x.length) amanha = { d, x }; } }
     h += `<div class="card" data-id="hoje"><h3>${ic('horario')} Aulas de hoje <a class="r small" href="#" data-v="horario">grade completa →</a></h3>${aulas.length ? aulas.map(a => {
       const st = N.minutos(a.fim) < agoraMin ? 'passou' : N.minutos(a.ini) <= agoraMin ? 'agora' : '';
-      return `<div class="tl ${st}"><div class="hr"><b>${esc(a.ini)}</b>${esc(a.fim)}</div><div class="bx" style="border-color:${a.t.cor}"><b>${esc(titulo(a.t.nome))}</b>${a.lab ? ' <span class="chip warn">laboratório</span>' : ''}${st === 'agora' ? ' <span class="chip">agora</span>' : ''}<div class="small muted">${esc(a.t.local)} · ${pl(a.qtd, 'aula')}</div></div></div>`;
+      return `<div class="tl ${st}"><div class="hr"><b>${esc(a.ini)}</b>${esc(a.fim)}</div><div class="bx" style="border-color:${a.t.cor}"><b>${esc(titulo(a.t.nome))}</b>${a.lab ? ' <span class="chip warn">🧪 aula prática</span>' : ''}${st === 'agora' ? ' <span class="chip">agora</span>' : ''}<div class="small muted">${esc(a.t.local)} · ${pl(a.qtd, 'aula')}</div></div></div>`;
     }).join('') : vazio('Sem aulas hoje. 🎉')}
       ${amanha ? `<div class="small muted" style="margin-top:10px">Próximo dia de aula: <b>${esc(N.dataLonga(amanha.d))}</b> — ${amanha.x.map(a => `${esc(a.ini)} ${esc(titulo(a.t.nome))}`).join(' · ')}</div>` : ''}</div>`;
 
@@ -153,44 +161,58 @@ var SMT = (() => {
   }
 
   /* ---------------- TURMAS ---------------- */
+  /** Média atual e situação da turma (usa as avaliações da turma virtual quando houver). */
+  function statusNota(S, t) {
+    const meta = S.cfg.mediaAprov, plano = N.planoAvaliacao(t);
+    if (t.resultado != null) return { media: t.resultado, txt: t.resultado >= meta ? 'aprovado' : 'abaixo da média', cls: t.resultado >= meta ? 'ok' : 'bad' };
+    const r = plano ? N.simularPlano(plano.map(x => ({ ...x, v: x.nota })), meta) : N.simular((t.unidades || []).map(u => u.v), meta);
+    const media = r.media != null ? r.media : t.mediaParcial;
+    const txt = { possivel: `precisa ${f1(r.precisa)}`, garantido: 'média garantida', aprovado: 'acima da média', abaixo: 'abaixo da média', impossivel: 'só com recuperação' }[r.estado] || (media == null ? 'sem notas ainda' : '');
+    const cls = { possivel: r.precisa >= 8 ? 'warn' : '', garantido: 'ok', aprovado: 'ok', abaixo: 'bad', impossivel: 'bad' }[r.estado] || '';
+    return { media, txt, cls };
+  }
+  /** Horários em texto corrido: "Seg, Qua 07:00–08:40 · Sex 13:30–15:20". */
+  function horarioCurto(S, t) {
+    const sem = N.eventosSemanais(t, S.modelo, S.cfg).map(e => e.rotulo);
+    const faltamP = N.aulasEmDatas([t], S.cfg).filter(a => a.d >= hoje()).length;
+    if (t.datas.length) sem.push(faltamP ? `${faltamP === 1 ? 'falta 1 aula prática' : `faltam ${faltamP} aulas práticas`}` : 'aulas práticas concluídas');
+    return sem.join(' · ') || (t.horarios || []).join(' ');
+  }
   function vTurmas(S) {
     const { dados } = S;
-    return `<h2>Turmas ${esc(dados.periodo)}</h2><p class="sub">Tudo de cada disciplina num lugar só. Suas anotações ficam salvas só neste navegador.</p>
+    return `<h2>Turmas ${esc(dados.periodo)}</h2><p class="sub">O resumo de cada disciplina. Toque em "Mais detalhes" para ver avaliações, anotações e agenda.</p>
     <div class="cols3" data-ordem="turmas">${dados.turmas.map((t, i) => {
-      const r = t.resumo || {}, sim = N.simular((t.unidades || []).map(u => u.v), S.cfg.mediaAprov);
-      const pct = r.limite ? Math.min(100, Math.round(100 * r.faltas / r.limite)) : 0;
-      const corB = { bad: 'var(--bad)', warn: 'var(--warn)', ok: 'var(--ok)' }[r.nivel] || 'var(--ac)';
-      return `<div class="card" id="t${i}" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}">
+      const r = t.resumo || {}, n = statusNota(S, t), anot = (S.pessoal.anot || {})[chaveT(t)] || '';
+      const fTxt = r.restam == null ? '' : r.restam >= 0 ? `pode faltar +${r.restam}` : `passou ${-r.restam} do limite`;
+      const sem = N.eventosSemanais(t, S.modelo, S.cfg), labs = N.labsParaGoogle(t, S.cfg);
+      return `<div class="card tc" id="t${i}" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}">
         <h3 style="margin-bottom:2px">${esc(titulo(t.nome))}</h3>
-        <div class="small muted">${esc(t.codigo)}${t.codigo ? ' · ' : ''}${esc(t.local)}</div>
-        <div class="small" style="margin-top:6px">${(t.fixos || t.horarios).map(c => `<span class="chip gray" title="${esc(c)}">${esc(N.textoHorario(c, S.cfg) || c)}</span>`).join('')}${t.datas.length ? `<span class="chip warn">${pl(t.datas.length, 'aula')} em datas específicas</span>` : ''}</div>
-        <div style="margin-top:12px" class="small"><b>Notas</b> ${(t.unidades || []).length ? t.unidades.map(u => `<span class="chip ${u.v == null ? 'gray' : ''}">${esc(curto(u.h))}: ${u.v == null ? '—' : f1(u.v)}</span>`).join('') : '<span class="fade">sem notas lançadas</span>'}
-          ${t.resultado != null ? `<span class="chip ok">Final: ${f1(t.resultado)}</span>` : sim.estado === 'possivel' ? `<span class="chip warn">precisa ${f1(sim.precisa)}</span>` : sim.estado === 'impossivel' ? '<span class="chip bad">abaixo da média</span>' : sim.estado === 'garantido' || sim.estado === 'aprovado' ? '<span class="chip ok">média garantida</span>' : ''}
-          ${t.situacao ? `<span class="sit ${sitClass(t.situacao)}">${esc(t.situacao)}</span>` : ''}</div>
-        ${r.faltas != null ? `<div class="small" style="margin-top:10px"><b>Faltas</b> ${r.faltas}${r.limite != null ? ` de ${r.limite}` : ''}${r.restam != null ? ` · ${r.restam >= 0 ? `pode faltar mais ${r.restam}` : `<span class="err">passou ${-r.restam}</span>`}` : ''}</div>${r.limite ? `<div class="bar"><i style="width:${pct}%;background:${corB}"></i></div>` : ''}` : ''}
-        ${(() => { const sem = N.eventosSemanais(t, S.modelo, S.cfg), labs = N.labsParaGoogle(t, S.cfg);
-          if (!sem.length && !labs.length) return '';
-          return `<details style="margin-top:10px"><summary class="small b">${ic('agenda')} Adicionar ao Google Agenda <span class="arr">▶</span></summary><div class="acts" style="margin-top:6px">
-            ${sem.map(e => gbtn(e, 'Toda ' + e.rotulo)).join('')}
-            ${labs.map(e => gbtn(e, e.qtd > 1 ? `Todas as ${e.qtd} aulas práticas` : `${fmt(e.dia)} ${e.ini}`)).join('')}
-            ${labs.length > 1 ? `<button class="btn sm" data-a="gcal-todos" data-i="${i}">${ic('down')} Salvar todas as práticas (importar)</button>` : ''}
-          </div></details>`; })()}
-        ${blocoAvaliacoes(S, t)}
-        <label class="f" style="margin-top:12px">Minhas anotações<textarea data-in="anot" data-k="${esc(chaveT(t))}" placeholder="Ex.: prova 2 cai cap. 4–6, professor aceita lista até sexta…">${esc((S.pessoal.anot || {})[chaveT(t)] || '')}</textarea></label>
-        <div class="acts" style="margin-top:10px"><button class="btn sm pri" data-a="turma" data-i="${i}">${ic('ext')} Abrir turma virtual</button><button class="btn sm" data-v="simulador">${ic('simulador')} Simular</button><button class="btn sm" data-a="tarefa-turma" data-i="${i}">${ic('mais')} Tarefa</button>${t.datas.length ? `<button class="btn sm" data-a="ics-datas" data-i="${i}" title="Exportar as ${t.datas.length} aulas em datas específicas">${ic('down')} Datas (.ics)</button>` : ''}</div>
+        <div class="small muted">${[t.codigo, t.local].filter(Boolean).map(esc).join(' · ')}</div>
+        <div class="small" style="margin-top:6px">${ic('horario')} ${esc(horarioCurto(S, t))}</div>
+        <div class="kpis">
+          <div class="kpi"><span class="k">Média</span><b class="v">${n.media != null ? f1(n.media) : '—'}</b><span class="s ${n.cls}">${esc(n.txt)}</span></div>
+          <div class="kpi"><span class="k">Faltas</span><b class="v">${r.faltas != null ? r.faltas : '—'}${r.limite != null ? `<small>/${r.limite}</small>` : ''}</b><span class="s ${r.nivel === 'na' ? '' : r.nivel}">${esc(fTxt)}</span></div>
+        </div>
+        <div class="acts"><button class="btn sm pri" data-a="turma" data-i="${i}">${ic('ext')} Abrir turma virtual</button></div>
+        <details class="mais"><summary class="small b">Mais detalhes${anot ? ' · 📝 tem anotação' : ''} <span class="arr">▶</span></summary>
+          <div class="sec-t">Avaliações</div>${blocoAvaliacoes(S, t, { semDetails: true })}
+          ${sem.length || labs.length ? `<div class="sec-t">Google Agenda</div><div class="acts">${sem.map(e => gbtn(e, 'Toda ' + e.rotulo)).join('')}${labs.map(e => gbtn(e, e.qtd > 1 ? `As ${e.qtd} aulas práticas que faltam` : `Aula prática ${fmt(e.dia)} ${e.ini}`)).join('')}${labs.length > 1 ? `<button class="btn sm" data-a="gcal-todos" data-i="${i}">${ic('down')} Salvar todas (importar)</button>` : ''}</div>` : ''}
+          <div class="sec-t">Minhas anotações</div><textarea data-in="anot" data-k="${esc(chaveT(t))}" aria-label="Anotações de ${esc(titulo(t.nome))}" placeholder="Ex.: P2 cai cap. 4–6; lista vale ponto extra">${esc(anot)}</textarea>
+          <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="simular-turma" data-i="${i}">${ic('simulador')} Simular notas</button><button class="btn sm" data-a="tarefa-turma" data-i="${i}">${ic('mais')} Nova tarefa</button></div>
+        </details>
       </div>`;
     }).join('')}</div>`;
   }
 
   /** Avaliações, pesos e método lidos da página "Ver Notas" da turma virtual. */
-  function blocoAvaliacoes(S, t) {
+  function blocoAvaliacoes(S, t, op = {}) {
     const a = t.aval;
     if (!a || a.vazio) {
       const msg = t.avalErro || (S.dados.parcial ? 'carregando…' : 'atualize os dados para buscar');
       return `<div class="small fade" style="margin-top:10px"><b class="muted">Avaliações da turma:</b> ${esc(msg)}</div>`;
     }
     const plano = N.planoAvaliacao(t);
-    let h = `<details class="aval" open><summary class="small b" style="margin-top:12px">Avaliações da turma <span class="arr">▶</span></summary>`;
+    let h = op.semDetails ? `<div class="aval">` : `<details class="aval" open><summary class="small b" style="margin-top:12px">Avaliações da turma <span class="arr">▶</span></summary>`;
     if (a.infos.length) h += `<div class="small" style="margin:6px 0">${a.infos.map(x => `<div class="res inf" style="padding:6px 10px;margin-bottom:4px">${esc(x)}</div>`).join('')}</div>`;
     if (plano) {
       const grupos = [...new Set(plano.map(x => x.unid || ''))];
@@ -207,31 +229,45 @@ var SMT = (() => {
       h += `<div class="tw"><table class="mini"><thead><tr>${a.colunas.map(c => `<th title="${esc(c.title)}">${c.grupo ? `<span class="fade">${esc(c.grupo)}</span><br>` : ''}${esc(c.h)}</th>`).join('')}</tr></thead>
         <tbody><tr>${a.colunas.map(c => `<td class="n" title="${esc(c.vt)}">${esc(c.v) || '<span class="fade">—</span>'}</td>`).join('')}</tr></tbody></table></div>`;
     }
-    return h + `</details>`;
+    return h + (op.semDetails ? `</div>` : `</details>`);
   }
 
   /* ---------------- FALTAS ---------------- */
   function vFaltas(S) {
     const { dados, modelo } = S;
     const ts = [...dados.turmas].sort((a, b) => ((a.resumo?.restam ?? 99) - (b.resumo?.restam ?? 99)));
-    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Limite = 25% das aulas da carga horária (regra dos 75% de presença). Cada quadradinho é uma aula:
-      <span class="dia" style="display:inline-block;vertical-align:middle"></span> presente, <span class="dia f" style="display:inline-block;vertical-align:middle">2</span> faltas, <span class="dia nr" style="display:inline-block;vertical-align:middle"></span> sem registro.</p>
-    <div class="cols" data-ordem="faltas">${ts.map(t => {
+    const total = ts.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
+    const risco = ts.filter(t => ['bad', 'warn'].includes(t.resumo?.nivel)).length;
+    const linha = t => {
       const r = t.resumo || {}, f = t.freq;
       const pct = r.limite ? Math.min(100, Math.round(100 * r.faltas / r.limite)) : 0;
       const cor = { bad: 'var(--bad)', warn: 'var(--warn)', ok: 'var(--ok)' }[r.nivel] || 'var(--ac)';
+      const status = r.restam == null ? (r.faltas != null ? pl(r.faltas, 'falta') : '—') : r.restam < 0 ? `passou ${-r.restam}` : `pode faltar +${r.restam}`;
       const dias = f && f.registros.length ? `<div class="dias">${f.registros.map(x => {
         const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`];
         const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`;
         return x.faltas == null ? `<span class="dia nr" title="${esc(tip)}"></span>` : x.faltas ? `<span class="dia f" title="${esc(tip)}">${x.faltas}</span>` : `<span class="dia" title="${esc(tip)}"></span>`;
-      }).join('')}</div>` : `<div class="muted small">${esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros de frequência ainda.'))}</div>`;
-      const datasF = f ? f.registros.filter(x => x.faltas).map(x => `${x.data.slice(0, 5)} (${x.faltas})`).join(', ') : '';
-      return `<div class="card" data-id="${esc(chaveT(t))}"><h3><span class="dot" style="background:${t.cor};margin:0"></span>${esc(titulo(t.nome))}<span class="r">${chipFaltas(r)}</span></h3>
-        ${r.faltas != null ? `<div class="bar"><i style="width:${pct}%;background:${cor}"></i></div>
-        <div class="small"><b>${r.faltas}</b> ${r.faltas === 1 ? 'falta' : 'faltas'}${r.limite != null ? ` de no máximo <b>${r.limite}</b> · ${r.restam >= 0 ? `pode faltar mais <b>${r.restam}</b> ${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` <span class="muted">≈ ${pl(r.diasRestam, 'dia')} de aula</span>` : ''}` : `<b class="err">passou ${-r.restam} do limite</b>`}` : ''}</div>` : ''}
-        ${f && f.aulasRegistradas ? `<div class="muted small">${f.presencas}/${f.aulasRegistradas} aulas com presença · ${f.aulasCH ?? '?'} aulas na carga horária · ${Math.round(100 * f.presencas / f.aulasRegistradas)}% de presença</div>` : ''}
-        ${datasF ? `<div class="small" style="margin-top:4px">Faltas em: ${esc(datasF)}</div>` : ''}${dias}</div>`;
-    }).join('')}</div>`;
+      }).join('')}</div>` : '';
+      const datasF = f ? f.registros.filter(x => x.faltas).map(x => `${x.data.slice(0, 5)}${x.faltas > 1 ? ` (${x.faltas})` : ''}`).join(', ') : '';
+      const det = [
+        r.restam != null && r.restam >= 0 && r.diasRestam != null ? `Pode faltar mais <b>${pl(r.restam, 'aula')}</b> — cerca de <b>${pl(r.diasRestam, 'dia')} de aula</b>.` : '',
+        f && f.aulasRegistradas ? `Presença: <b>${Math.round(100 * f.presencas / f.aulasRegistradas)}%</b> (${f.presencas} de ${f.aulasRegistradas} aulas registradas${f.aulasCH ? `; ${f.aulasCH} no semestre` : ''}).` : '',
+        datasF ? `Faltou em: ${esc(datasF)}.` : (f && f.registros.length ? 'Nenhuma falta até agora. 👏' : ''),
+      ].filter(Boolean).map(x => `<div>${x}</div>`).join('');
+      return `<details class="frow"><summary>
+          <span class="dot" style="background:${t.cor};margin:0"></span>
+          <span class="fn">${esc(titulo(t.nome))}</span>
+          <span class="fb">${r.limite ? `<span class="bar" style="margin:0"><i style="width:${pct}%;background:${cor}"></i></span>` : ''}</span>
+          <span class="fq">${r.faltas != null ? `${r.faltas}${r.limite != null ? `<span class="fade">/${r.limite}</span>` : ''}` : ''}</span>
+          <span class="chip ${r.nivel === 'na' ? 'gray' : r.nivel}">${esc(status)}</span>
+        </summary>
+        <div class="fdet small">${det || `<div class="muted">${esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros de frequência ainda.'))}</div>`}${dias}</div></details>`;
+    };
+    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">O limite é 25% das aulas de cada disciplina. Toque numa turma para ver aula por aula.</p>
+      <div class="grid"><div class="stat"><div class="v">${total}</div><div class="k">${total === 1 ? 'falta' : 'faltas'} no semestre</div></div>
+        <div class="stat"><div class="v" ${risco ? 'style="color:var(--warn)"' : ''}>${risco}</div><div class="k">${risco === 1 ? 'turma perto do limite' : 'turmas perto do limite'}</div></div></div>
+      <div class="card flist">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
+      <p class="small fade"><span class="dia" style="display:inline-block;vertical-align:middle"></span> presente · <span class="dia f" style="display:inline-block;vertical-align:middle">2</span> faltas na aula · <span class="dia nr" style="display:inline-block;vertical-align:middle"></span> ainda sem registro</p>`;
   }
 
   /* ---------------- SEMANAS ---------------- */
@@ -266,7 +302,7 @@ var SMT = (() => {
       const itens = [];
       w.notas.forEach(x => itens.push(`<div class="it"><span class="chip ok">nota</span> <b style="color:${corDe(S, x.cod)}">●</b> ${esc(nomeDeCodigo(S, dados.periodo, x.cod))} — ${esc(curto(x.campo))}: <b>${esc(x.v)}</b>${x.antes ? ` <span class="muted">(antes ${esc(x.antes)})</span>` : ''} <span class="fade small">lançada ${fmt(deIso(x.visto))}</span></div>`));
       w.faltas.sort((a, b) => parseData(a.r.data) - parseData(b.r.data)).forEach(x => itens.push(`<div class="it"><span class="chip bad">${x.r.faltas} falta${x.r.faltas > 1 ? 's' : ''}</span> <b style="color:${x.t.cor}">●</b> ${esc(titulo(x.t.nome))} <span class="fade small">aula de ${esc(x.r.data.slice(0, 5))}${x.visto ? ` · lançada ${fmt(deIso(x.visto))}` : ''}</span></div>`));
-      w.ativ.forEach(a => itens.push(`<div class="it"><span class="chip warn">${esc(a.cat)}</span> ${a.feito ? '<s>' : ''}${esc(a.titulo)}${a.feito ? '</s>' : ''} <span class="fade small">${a.turma ? esc(titulo(a.turma)) + ' · ' : ''}${fmt(a.d)} ${esc(a.hora || '')}</span></div>`));
+      w.ativ.forEach(a => itens.push(`<div class="it">${chipTipo(a)} ${a.feito ? '<s>' : ''}${esc(a.titulo)}${a.feito ? '</s>' : ''} <span class="fade small">${a.turma ? esc(titulo(a.turma)) + ' · ' : ''}${fmt(a.d)} ${esc(a.hora || '')}</span></div>`));
       const resumo = [totF ? `<span class="chip bad">${pl(totF, 'falta')}</span>` : (w.aulas - w.nr > 0 ? '<span class="chip ok">sem faltas</span>' : ''), w.nr ? `<span class="chip gray">${pl(w.nr, 'aula')} sem registro</span>` : ''].join('');
       return `<div class="wk ${n === agora ? 'cur' : ''}"><h3>Semana ${n} <span class="fade small" style="font-weight:400">${semData(n)}${n === agora ? ' · esta semana' : n > agora ? ' · futura' : ''}</span> ${resumo}</h3>${itens.join('') || (resumo ? '' : '<div class="fade small">Nada nesta semana.</div>')}</div>`;
     }).join('');
@@ -441,27 +477,28 @@ var SMT = (() => {
       <p class="small fade">Código SIGAA: dígitos = dias (2=Seg … 7=Sáb), letra = turno (M manhã, T tarde, N noite), números = aulas do turno.</p>`;
   }
 
-  /** Lista das aulas em datas específicas (laboratórios/práticas), com horário e exportação. */
+  /** Aulas práticas (datas específicas): as que faltam em destaque; as que já passaram ficam recolhidas. */
   function blocoDatas(S, turmas, comTitulo) {
-    const aulas = N.aulasEmDatas(turmas, S.cfg), prox = aulas.filter(a => a.d >= hoje());
+    const aulas = N.aulasEmDatas(turmas, S.cfg), prox = aulas.filter(a => a.d >= hoje()), pass = aulas.filter(a => a.d < hoje()).reverse();
     const linha = a => `<div class="row" style="${a.d < hoje() ? 'opacity:.5' : ''}"><span class="dot" style="background:${a.t.cor}"></span><div class="grow"><b>${esc(N.dataLonga(a.d))}</b>${a.ini ? ` · ${esc(a.ini)}–${esc(a.fim)}` : ''}<div class="small muted">${comTitulo ? esc(titulo(a.t.nome)) + ' · ' : ''}${esc(a.t.local)} · ${esc(a.code)}</div></div><div style="text-align:right"><span class="chip ${a.d < hoje() ? 'gray' : diasAte(a.d) <= 7 ? 'warn' : ''}">${quando(a.d)}</span>${a.d >= hoje() ? `<div style="margin-top:4px">${gbtn({ dia: a.d, ini: a.ini, fim: a.fim, titulo: titulo(a.t.nome) + ' (aula prática)', local: a.t.local, desc: `${a.t.codigo || ''} ${a.code}`.trim() })}</div>` : ''}</div></div>`;
     const idx = turmas.length === 1 ? S.dados.turmas.indexOf(turmas[0]) : -1;
-    const atalhos = turmas.flatMap(t => N.labsParaGoogle(t, S.cfg).filter(e => e.qtd > 1).map(e => gbtn(e, `${comTitulo ? titulo(t.nome) + ': ' : ''}todas as ${e.qtd} aulas (${N.DIAS[e.dia.getDay() + 1]} ${e.ini})`)));
-    return `<div class="card"><h3>${ic('agenda')} Aulas em datas específicas${comTitulo ? ' (laboratórios/práticas)' : ''}<span class="r small muted">${prox.length} por vir de ${aulas.length}</span></h3>
+    const atalhos = turmas.flatMap(t => N.labsParaGoogle(t, S.cfg).filter(e => e.qtd > 1).map(e => gbtn(e, `${comTitulo ? titulo(t.nome) + ': ' : ''}as ${e.qtd} que faltam (${N.DIAS[e.dia.getDay() + 1]} ${e.ini})`)));
+    return `<div class="card"><h3>🧪 ${comTitulo ? '* ' : ''}Aulas práticas<span class="r small muted">${prox.length ? `${prox.length === 1 ? 'falta 1' : `faltam ${prox.length}`} de ${aulas.length}` : 'todas concluídas'}</span></h3>
       ${prox.length ? `<div class="res inf" style="margin-bottom:10px"><b>Salvar todas no Google Agenda</b>
-        <div class="acts" style="margin-top:8px"><button class="btn sm pri" data-a="gcal-todos" ${idx >= 0 ? `data-i="${idx}"` : ''}>${ic('agenda')} Salvar ${prox.length > 1 ? `as ${prox.length} aulas` : 'a aula'} no Google Agenda</button>${atalhos.join('')}</div>
-        <div class="small" style="margin-top:6px">${atalhos.length ? 'Os botões "todas as N aulas" criam um evento repetido com 1 clique. ' : ''}"Salvar" baixa o arquivo e abre o Google Agenda em <b>Importar</b>: é só escolher o arquivo <b>aulas-praticas.ics</b> e clicar em Importar.</div></div>` : ''}
-      ${aulas.map(linha).join('') || vazio('Nenhuma data encontrada.')}</div>`;
+        <div class="acts" style="margin-top:8px"><button class="btn sm pri" data-a="gcal-todos" ${idx >= 0 ? `data-i="${idx}"` : ''}>${ic('agenda')} Salvar ${prox.length > 1 ? `as ${prox.length} aulas práticas que faltam` : 'a aula prática que falta'} no Google Agenda</button>${atalhos.join('')}</div>
+        <div class="small" style="margin-top:6px">${atalhos.length ? 'Os botões "as N que faltam" criam um evento repetido com 1 clique. ' : ''}"Salvar" baixa o arquivo e abre o Google Agenda em <b>Importar</b>: é só escolher o arquivo <b>aulas-praticas.ics</b> e clicar em Importar.</div></div>` : ''}
+      ${prox.map(linha).join('') || (aulas.length ? '' : vazio('Nenhuma aula prática encontrada.'))}
+      ${pass.length ? `<details class="passadas"><summary class="small b muted">Já passaram (${pass.length}) <span class="arr">▶</span></summary>${pass.map(linha).join('')}</details>` : ''}</div>`;
   }
 
   /* ---------------- FILTROS DA AGENDA ---------------- */
   // Cada tela (agenda, semanas) guarda seus filtros em S.pessoal.filtros[tela].
   const TIPOS_FILTRO = {
-    agenda: [['lab', '🧪 Laboratórios'], ['sigaa', '📝 Provas e atividades'], ['tarefa', '✓ Minhas tarefas']],
-    semanas: [['falta', '✕ Faltas'], ['nota', '★ Notas'], ['lab', '🧪 Laboratórios'], ['sigaa', '📝 Provas e atividades'], ['tarefa', '✓ Minhas tarefas']],
+    agenda: [['prova', '📝 Provas'], ['atividade', '📌 Atividades'], ['lab', '🧪 Aulas práticas'], ['tarefa', '✓ Minhas tarefas']],
+    semanas: [['falta', '✕ Faltas'], ['nota', '★ Notas'], ['prova', '📝 Provas'], ['atividade', '📌 Atividades'], ['lab', '🧪 Aulas práticas'], ['tarefa', '✓ Minhas tarefas']],
   };
   const filtroDe = (S, tela) => ({ ocultos: [], turma: '', semFeitas: false, ...(((S.pessoal || {}).filtros || {})[tela] || {}) });
-  /** x.tipo: 'lab' | 'aula' (= lab) | 'sigaa' | 'tarefa' | 'falta' | 'nota' ; x.turma = nome da turma */
+  /** x.tipo: 'lab' | 'aula' (= lab) | 'prova' | 'atividade' | 'tarefa' | 'falta' | 'nota' ; x.turma = nome da turma */
   function passaFiltro(S, x, tela = 'agenda') {
     const f = filtroDe(S, tela), tipo = x.tipo === 'aula' ? 'lab' : x.tipo;
     if (f.ocultos.includes(tipo)) return false;
@@ -483,8 +520,8 @@ var SMT = (() => {
   /** Todos os compromissos com data (inclui labs passados), indexados por dia ISO. */
   function compromissosPorDia(S) {
     const m = new Map(), add = (d, x) => { if (!d) return; const k = isoDia(d); (m.get(k) || m.set(k, []).get(k)).push(x); };
-    S.dados.atividades.forEach(a => add(parseData(a.data), { tipo: 'sigaa', hora: a.hora, titulo: a.titulo, cat: a.tipo || 'Atividade', turma: a.disciplina, cor: corDe(S, a.disciplina) }));
-    N.aulasEmDatas(S.dados.turmas, S.cfg).forEach(a => add(a.d, { tipo: 'lab', hora: a.ini, fim: a.fim, titulo: titulo(a.t.nome), cat: 'Laboratório', turma: a.t.nome, local: a.t.local, cor: a.t.cor, code: a.code }));
+    S.dados.atividades.forEach(a => add(parseData(a.data), { tipo: tipoSigaa(a), hora: a.hora, titulo: a.titulo, cat: ROT[tipoSigaa(a)], turma: a.disciplina, cor: corDe(S, a.disciplina) }));
+    N.aulasEmDatas(S.dados.turmas, S.cfg).forEach(a => add(a.d, { tipo: 'lab', hora: a.ini, fim: a.fim, titulo: titulo(a.t.nome), cat: 'Aula prática', turma: a.t.nome, local: a.t.local, cor: a.t.cor, code: a.code }));
     (S.pessoal.tarefas || []).forEach(t => add(deIso(t.data), { tipo: 'tarefa', titulo: t.txt, cat: 'Tarefa', turma: t.turma, feito: t.feito, cor: t.turma ? corDe(S, t.turma) : 'var(--fade)' }));
     m.forEach((xs, k) => { const f = xs.filter(x => passaFiltro(S, x, 'agenda')); if (f.length) m.set(k, f.sort((a, b) => String(a.hora || '99').localeCompare(String(b.hora || '99')))); else m.delete(k); });
     return m;
@@ -495,13 +532,12 @@ var SMT = (() => {
     const prim = new Date(ano, mes - 1, 1), ini = new Date(prim); ini.setDate(1 - prim.getDay());
     const semanas = Math.ceil((prim.getDay() + new Date(ano, mes, 0).getDate()) / 7);
     const porDia = compromissosPorDia(S), sel = S.diaCal || isoDia(hj);
-    const ico = { lab: '🧪', sigaa: '📝', tarefa: '✓' };
     let cel = '';
     for (let i = 0; i < semanas * 7; i++) {
       const d = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate() + i), k = isoDia(d), xs = porDia.get(k) || [];
       const cls = ['cd', d.getMonth() !== mes - 1 ? 'fora' : '', k === isoDia(hj) ? 'hj' : '', k === sel ? 'sel' : '', d < hj ? 'pass' : ''].join(' ');
       cel += `<button class="${cls}" data-a="cal-dia" data-d="${k}" title="${esc(xs.map(x => `${x.hora ? x.hora + ' ' : ''}${x.cat}: ${x.titulo}`).join('\n'))}"><span class="nd">${d.getDate()}</span>
-        ${xs.slice(0, 3).map(x => `<span class="ev ${x.tipo} ${x.feito ? 'ok' : ''}" style="--c:${x.cor}"><i></i><span>${ico[x.tipo]} ${esc(x.hora ? x.hora + ' ' : '')}${esc(x.tipo === 'lab' ? x.titulo : x.titulo)}</span></span>`).join('')}
+        ${xs.slice(0, 3).map(x => `<span class="ev ${x.tipo} ${x.feito ? 'ok' : ''}" style="--c:${x.cor}"><i></i><span>${ICO[x.tipo]} ${esc(x.hora ? x.hora + ' ' : '')}${esc(x.titulo)}</span></span>`).join('')}
         ${xs.length > 3 ? `<span class="mais">+${xs.length - 3}</span>` : ''}</button>`;
     }
     const doDia = porDia.get(sel) || [], dSel = deIso(sel);
@@ -509,10 +545,10 @@ var SMT = (() => {
     return `<div class="card cal"><div class="calh"><h3 style="margin:0">${MESES[mes - 1]} ${ano}</h3><span class="small muted">${pl(total, 'compromisso')}</span>
         <div class="acts" style="margin-left:auto"><button class="btn sm" data-a="cal-mes" data-n="-1" title="Mês anterior">‹</button><button class="btn sm" data-a="cal-hoje">Hoje</button><button class="btn sm" data-a="cal-mes" data-n="1" title="Próximo mês">›</button></div></div>
       <div class="calg">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => `<div class="dsem">${x}</div>`).join('')}${cel}</div>
-      <div class="leg"><span>🧪 laboratório</span><span>📝 prova/atividade do SIGAA</span><span>✓ minha tarefa</span></div>
+      <div class="leg"><span>📝 prova</span><span>📌 atividade</span><span>🧪 aula prática</span><span>✓ minha tarefa</span></div>
       <div class="caldia"><div class="b" style="margin-bottom:4px">${esc(N.dataLonga(dSel))} <span class="fade small" style="font-weight:400">· ${quando(dSel)}</span></div>
-        ${doDia.length ? doDia.map(x => `<div class="row"><span class="dot" style="background:${x.cor}"></span><div class="grow"><b>${esc(x.titulo)}</b><div class="small muted">${esc(x.cat)}${x.hora ? ` · ${esc(x.hora)}${x.fim ? '–' + esc(x.fim) : ''}` : ''}${x.local ? ' · ' + esc(x.local) : ''}${x.turma && x.tipo !== 'lab' ? ' · ' + esc(titulo(x.turma)) : ''}</div></div>
-          ${dSel >= hj && !x.feito ? gbtn({ dia: dSel, ini: x.hora || '', fim: x.hora ? (x.fim || umaHoraDepois(x.hora)) : '', titulo: x.tipo === 'lab' ? x.titulo + ' (aula prática)' : x.tipo === 'sigaa' ? `${x.cat}: ${x.titulo}` : x.titulo, local: x.local || '', desc: x.turma ? titulo(x.turma) : '' }) : ''}</div>`).join('')
+        ${doDia.length ? doDia.map(x => `<div class="row"><span class="dot" style="background:${x.cor}"></span><div class="grow"><b>${esc(x.titulo)}</b><div class="small muted">${chipTipo(x)}${x.hora ? ` · ${esc(x.hora)}${x.fim ? '–' + esc(x.fim) : ''}` : ''}${x.local ? ' · ' + esc(x.local) : ''}${x.turma && x.tipo !== 'lab' ? ' · ' + esc(titulo(x.turma)) : ''}</div></div>
+          ${dSel >= hj && !x.feito ? gbtn({ dia: dSel, ini: x.hora || '', fim: x.hora ? (x.fim || umaHoraDepois(x.hora)) : '', titulo: x.tipo === 'lab' ? x.titulo + ' (aula prática)' : ehSigaa(x) ? `${x.cat}: ${x.titulo}` : x.titulo, local: x.local || '', desc: x.turma ? titulo(x.turma) : '' }) : ''}</div>`).join('')
           : `<p class="empty">Nada marcado. <a href="#" data-a="cal-nova" data-d="${sel}">Adicionar tarefa neste dia</a></p>`}</div></div>`;
   }
 
@@ -520,13 +556,13 @@ var SMT = (() => {
   function vAgenda(S) {
     const it = itensAgenda(S).filter(x => passaFiltro(S, x, 'agenda')), hj = hoje();
     const grupos = [['Atrasadas', i => i.tipo === 'tarefa' && !i.feito && i.d && diasAte(i.d) < 0], ['Hoje', i => i.d && diasAte(i.d) === 0], ['Amanhã', i => i.d && diasAte(i.d) === 1],
-      ['Próximos 7 dias', i => i.d && diasAte(i.d) > 1 && diasAte(i.d) <= 7], ['Mais adiante', i => i.d && diasAte(i.d) > 7], ['Sem data', i => !i.d], ['Concluídas e passadas', i => i.d && diasAte(i.d) < 0 && !(i.tipo === 'tarefa' && !i.feito)]];
+      ['Próximos 7 dias', i => i.d && diasAte(i.d) > 1 && diasAte(i.d) <= 7], ['Mais adiante', i => i.d && diasAte(i.d) > 7], ['Sem data', i => !i.d], ['Já passaram', i => i.d && diasAte(i.d) < 0 && !(i.tipo === 'tarefa' && !i.feito)]];
     const usado = new Set();
     const linha = i => `<div class="task ${i.feito ? 'feito' : ''}">${i.tipo === 'tarefa' ? `<input type="checkbox" data-in="feito" data-id="${esc(i.id)}" ${i.feito ? 'checked' : ''}>` : `<span class="dot" style="background:${i.cor};margin:6px 4px 0"></span>`}
-      <div class="grow" style="flex:1"><div class="tx b">${esc(i.titulo)}</div><div class="small muted">${i.tipo === 'sigaa' ? `<span class="chip">${esc(i.cat)}</span>` : '<span class="chip gray">minha tarefa</span>'} ${i.turma ? esc(titulo(i.turma)) : ''}</div></div>
-      <div style="text-align:right" class="small">${i.d ? `<b>${fmt(i.d)}</b> ${esc(i.hora || '')}<div class="fade">${quando(i.d)}</div>` : ''}${i.d && diasAte(i.d) >= 0 && !i.feito ? `<div style="margin-top:4px">${gbtn({ dia: i.d, ini: i.hora || '', fim: i.hora ? (i.tipo === 'aula' ? i.fim : umaHoraDepois(i.hora)) : '', titulo: i.tipo === 'sigaa' ? `${i.cat}: ${i.titulo}` : i.titulo, local: i.local || '', desc: i.turma ? titulo(i.turma) : '' })}</div>` : ''}</div>${i.tipo === 'tarefa' ? `<button class="del" data-a="del-tarefa" data-id="${esc(i.id)}" title="Excluir">${ic('x')}</button>` : ''}</div>`;
-    const corpo = grupos.map(([nome, f]) => { const xs = it.filter(i => !usado.has(i) && f(i)); xs.forEach(i => usado.add(i)); return xs.length ? `<div class="grp">${nome}</div>${xs.map(linha).join('')}` : ''; }).join('');
-    return `<h2>Agenda</h2><p class="sub">Provas, laboratórios e as suas próprias tarefas — no calendário e em lista.</p>
+      <div class="grow" style="flex:1"><div class="tx b">${esc(i.titulo)}</div><div class="small muted">${chipTipo(i)} ${i.turma ? esc(titulo(i.turma)) : ''}</div></div>
+      <div style="text-align:right" class="small">${i.d ? `<b>${fmt(i.d)}</b> ${esc(i.hora || '')}<div class="fade">${quando(i.d)}</div>` : ''}${i.d && diasAte(i.d) >= 0 && !i.feito ? `<div style="margin-top:4px">${gbtn({ dia: i.d, ini: i.hora || '', fim: i.hora ? (i.tipo === 'aula' ? i.fim : umaHoraDepois(i.hora)) : '', titulo: ehSigaa(i) ? `${i.cat}: ${i.titulo}` : i.titulo, local: i.local || '', desc: i.turma ? titulo(i.turma) : '' })}</div>` : ''}</div>${i.tipo === 'tarefa' ? `<button class="del" data-a="del-tarefa" data-id="${esc(i.id)}" title="Excluir">${ic('x')}</button>` : ''}</div>`;
+    const corpo = grupos.map(([nome, f]) => { const xs = it.filter(i => !usado.has(i) && f(i)); xs.forEach(i => usado.add(i)); if (!xs.length) return ''; return nome === 'Já passaram' ? `<details class="passadas"><summary class="grp" style="cursor:pointer">Já passaram (${xs.length}) <span class="arr">▶</span></summary>${xs.map(linha).join('')}</details>` : `<div class="grp">${nome}</div>${xs.map(linha).join('')}`; }).join('');
+    return `<h2>Agenda</h2><p class="sub">Provas, atividades, aulas práticas e as suas tarefas — no calendário e em lista. O que já passou fica recolhido no fim.</p>
       ${barraFiltros(S, 'agenda')}
       ${calendarioMes(S)}
       <div class="card"><h3>${ic('mais')} Nova tarefa</h3><div class="addf"><input id="nt-txt" placeholder="Ex.: estudar para P2 de Cálculo" maxlength="200"><input id="nt-data" type="date" value="${esc(S.novaData || isoDia(new Date(+hj + DIA_MS)))}"><select id="nt-turma"><option value="">(sem disciplina)</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${S.turmaTarefa === t.nome ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select><button class="btn pri" data-a="add-tarefa">Adicionar</button></div></div>
