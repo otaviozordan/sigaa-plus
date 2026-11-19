@@ -18,7 +18,6 @@ com tema claro/escuro, que funciona também no celular/tela pequena:
   - Faltas: quanto ainda pode faltar (em aulas e em dias de aula), % de presença, mapa aula por aula
   - Notas: todos os semestres, filtro rápido, notas abaixo da média em vermelho, "novo" nas
     notas recém-lançadas, exportar para planilha (CSV)
-  - Simulador: digite notas hipotéticas e veja sua média, ou descubra quanto precisa tirar
   - Desempenho: gráfico da média por semestre, aprovações/reprovações, melhores notas
   - Semanas: semana a semana do semestre (faltas, notas lançadas e tarefas)
   - Funções do SIGAA: busca em todos os itens do menu, com ★ favoritos
@@ -60,8 +59,8 @@ Observações
   nota/falta pela primeira vez. Quanto mais vezes você abrir, mais precisa fica a aba Semanas.
 - Os horários das aulas seguem a tabela da UNIFEI (M1 07:00-07:55 ... M4 10:10, T1 13:30 ...).
   M6, T6 e o turno da noite são estimados; corrija em Ajustes se precisar.
-- O simulador usa as avaliações e pesos da página "Ver Notas" de cada turma (e a nota da unidade,
-  quando o professor já lançou). Sem isso, faz média aritmética das unidades. Reposição não entra.
+- O "≥ X" nas notas que faltam usa as avaliações e pesos da página "Ver Notas" de cada turma (quando o
+  SIGAA não informa os pesos, eles são deduzidos da nota da unidade). Reposição não entra.
 - Ao fechar o painel, a página volta para o Portal do Discente (evita o erro de "comportamento
   inesperado" do SIGAA).
 

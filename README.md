@@ -1,6 +1,6 @@
 # 📚 SIGAA+ (UNIFEI)
 
-Extensão de navegador que transforma o SIGAA da UNIFEI num painel moderno, rápido e organizado — com notas por avaliação, simulador, faltas, horário, agenda e integração com o Google Agenda.
+Extensão de navegador que transforma o SIGAA da UNIFEI num painel moderno, rápido e organizado — com notas por avaliação, faltas, horário, agenda e integração com o Google Agenda.
 
 > Roda 100% no seu navegador, usando o login que você já fez no SIGAA. Não pede senha e não envia seus dados para nenhum servidor além do próprio SIGAA.
 
@@ -32,7 +32,6 @@ Suas tarefas, anotações e ajustes continuam salvos.
 | **Horário** | grade com os horários da UNIFEI, aula atual em destaque, aulas práticas (quantas faltam), exportação `.ics` |
 | **Faltas** | quanto ainda pode faltar (em aulas e em dias), % de presença, mapa aula por aula |
 | **Notas** | notas de cada turma avaliação por avaliação (pesos e nota da unidade) + histórico dos semestres anteriores |
-| **Simulador** | quanto precisa tirar, usando os pesos de cada avaliação |
 | **Desempenho** | gráfico da média por semestre, aprovações e melhores notas |
 | **Funções do SIGAA** | busca em todo o menu do SIGAA, com favoritos |
 

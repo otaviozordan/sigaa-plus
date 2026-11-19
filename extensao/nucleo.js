@@ -327,15 +327,39 @@ var SMN = (() => {
         if (!avs.length) { itens.push({ nome: g, abrev: g.replace(/unid(ade)?\.?\s*/i, 'U'), peso: 1, nota: notaU ? num(notaU.v) : null, unid: g, notaUnid: true }); continue; }
         avs.forEach(c => {
           const av = avals.find(x => x.abrev === c.h || x.nome === c.h);
-          itens.push({ nome: av ? av.nome : (c.title || c.h), abrev: c.h, peso: av ? av.peso : pesoDe(c.title) ?? 1, nota: num(c.v) ?? (av ? av.nota : null), unid: g });
+          const pt = pesoDe(c.title);
+          itens.push({ nome: av ? av.nome : (c.title || c.h), abrev: c.h, peso: av ? av.peso : pt ?? 1, pesoInfo: !!av || pt != null, nota: num(c.v) ?? (av ? av.nota : null), unid: g });
         });
         // nota da unidade já lançada pelo professor vale mais que a nossa conta
         const nu = notaU ? num(notaU.v) : null;
         if (nu != null) itens.filter(x => x.unid === g).forEach(x => { x.fixaUnid = nu; });
       }
+      estimarPesos(itens);
       return itens;
     }
     return avals.length ? avals : null;
+  }
+
+  /**
+   * Quando o SIGAA não informa os pesos, deduz pela nota da unidade já lançada.
+   * Ex.: P1T 9,3 · P1E 7,8 · Nota 8,3  =>  só fecha com P1T peso 1 e P1E peso 2.
+   * O peso deduzido é aplicado às avaliações "irmãs" das outras unidades (P2T, P2E…).
+   */
+  function estimarPesos(itens) {
+    const FR = [[1, 4], [1, 3], [2, 5], [1, 2], [3, 5], [2, 3], [3, 4]];
+    const suf = s => String(s || '').replace(/\d+/g, '').toUpperCase();
+    const modelo = {};
+    for (const g of [...new Set(itens.map(x => x.unid))]) {
+      const avs = itens.filter(x => x.unid === g && !x.notaUnid);
+      if (avs.length !== 2 || avs.some(x => x.pesoInfo || x.nota == null) || avs[0].fixaUnid == null) continue;
+      const [a, b] = avs; if (a.nota === b.nota) continue;
+      const w = (a.fixaUnid - b.nota) / (a.nota - b.nota);
+      const fr = FR.map(([p, q]) => ({ p, q, d: Math.abs(p / q - w) })).sort((x, y) => x.d - y.d)[0];
+      if (!fr || fr.d > 0.06 || (fr.p === 1 && fr.q === 2)) continue; // média simples: nada a ajustar
+      modelo[suf(a.abrev)] = fr.p; modelo[suf(b.abrev)] = fr.q - fr.p; modelo._de = g;
+    }
+    if (!modelo._de) return;
+    itens.forEach(x => { const p = modelo[suf(x.abrev)]; if (p && !x.pesoInfo && !x.notaUnid) { x.peso = p; x.pesoEstimado = modelo._de; } });
   }
 
   /** Média final pelo plano: média ponderada dentro de cada unidade, depois média das unidades. */

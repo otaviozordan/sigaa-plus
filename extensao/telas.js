@@ -25,7 +25,7 @@ var SMT = (() => {
 
   const VIEWS = [
     ['inicio', 'Início'], ['turmas', 'Turmas'], ['agenda', 'Agenda'], ['horario', 'Horário'], ['faltas', 'Faltas'],
-    ['notas', 'Notas'], ['simulador', 'Simulador'], ['desempenho', 'Desempenho'], ['semanas', 'Semanas'], ['funcoes', 'Funções do SIGAA'], ['ajustes', 'Ajustes'], ['sobre', 'Sobre'],
+    ['notas', 'Notas'], ['desempenho', 'Desempenho'], ['semanas', 'Semanas'], ['funcoes', 'Funções do SIGAA'], ['ajustes', 'Ajustes'], ['sobre', 'Sobre'],
   ];
   const nomeView = v => (VIEWS.find(x => x[0] === v) || [, ''])[1];
 
@@ -191,6 +191,18 @@ var SMT = (() => {
     if (t.datas.length) sem.push(faltamP ? `${faltamP === 1 ? 'falta 1 aula prática' : `faltam ${faltamP} aulas práticas`}` : 'aulas práticas concluídas');
     return sem.join(' · ') || (t.horarios || []).join(' ');
   }
+  /** Caixinha "Notas" de Turmas: N1 e N2 lado a lado; avisa o que ainda falta lançar. */
+  function kpiNotas(S, t, n) {
+    const fs = fechamento(S, t), meta = S.cfg.mediaAprov;
+    if (!fs.length) return `<div class="kpi"><span class="k">Média</span><b class="v">${n.media != null ? f1(n.media) : '—'}</b><span class="s ${n.cls}">${esc(n.txt)}</span></div>`;
+    const pend = fs.filter(u => u.v == null);
+    const txt = pend.length ? `falta lançar ${pend.map(u => u.rot).join(' e ')}` : n.media != null ? `média ${f1(n.media)}` : '';
+    const cls = pend.length ? 'warn' : n.media != null && n.media < meta ? 'bad' : 'ok';
+    const dica = [...pend.filter(u => u.pend.length).map(u => `${u.rot}: falta ${u.pend.join(', ')}`), n.txt && /precisa/.test(n.txt) ? n.txt + ' no que falta' : ''].filter(Boolean).join(' · ');
+    return `<div class="kpi" title="${esc(dica)}"><span class="k">Notas</span>
+      <div class="nn">${fs.map(u => `<span class="nn-u ${u.v == null ? 'pend' : u.v < meta ? 'baixa' : ''}"><small>${u.rot}</small><b>${u.v != null ? f1(u.v) : '—'}</b></span>`).join('')}</div>
+      <span class="s ${cls}">${esc(txt)}</span></div>`;
+  }
   function vTurmas(S) {
     const { dados } = S;
     return `<h2>Turmas ${esc(dados.periodo)}</h2><p class="sub">O resumo de cada disciplina. Toque em "Mais detalhes" para ver avaliações, anotações e agenda.</p>
@@ -203,15 +215,15 @@ var SMT = (() => {
         <div class="small muted">${[t.codigo, t.local].filter(Boolean).map(esc).join(' · ')}</div>
         ${horarioCurto(S, t) ? `<div class="small" style="margin-top:6px">${ic('horario')} ${esc(horarioCurto(S, t))}</div>` : ''}
         <div class="kpis">
-          <div class="kpi"><span class="k">Média</span><b class="v">${n.media != null ? f1(n.media) : '—'}</b><span class="s ${n.cls}">${esc(n.txt)}</span></div>
+          ${kpiNotas(S, t, n)}
           <div class="kpi"><span class="k">Faltas</span><b class="v">${r.faltas != null ? r.faltas : '—'}${r.limite != null ? `<small>/${r.limite}</small>` : ''}</b><span class="s ${r.nivel === 'na' ? '' : r.nivel}">${esc(fTxt)}</span></div>
         </div>
         <div class="acts"><button class="btn sm pri" data-a="turma" data-i="${i}">${ic('ext')} Abrir turma virtual</button></div>
-        <details class="mais"><summary class="small b">Mais detalhes${anot ? ' · 📝 tem anotação' : ''} <span class="arr">▶</span></summary>
-          <div class="sec-t">Avaliações</div>${blocoAvaliacoes(S, t, { semDetails: true })}
+        <details class="mais"><summary class="small b"><span class="arr">▶</span> Mais detalhes${anot ? ' · 📝' : ''}<span class="fade" style="font-weight:500">avaliações, agenda, anotações</span></summary>
+          <div class="sec-t">Plano de avaliações</div>${corpoNotas(S, t)}
           ${sem.length || labs.length ? `<div class="sec-t">Google Agenda</div><div class="acts">${sem.map(e => gbtn(e, 'Toda ' + e.rotulo)).join('')}${labs.map(e => gbtn(e, e.qtd > 1 ? `As ${e.qtd} aulas práticas que faltam` : `Aula prática ${fmt(e.dia)} ${e.ini}`)).join('')}${labs.length > 1 ? `<button class="btn sm" data-a="gcal-todos" data-i="${i}">${ic('down')} Salvar todas (importar)</button>` : ''}</div>` : ''}
           <div class="sec-t">Minhas anotações</div><textarea data-in="anot" data-k="${esc(chaveT(t))}" aria-label="Anotações de ${esc(titulo(t.nome))}" placeholder="Ex.: P2 cai cap. 4–6; lista vale ponto extra">${esc(anot)}</textarea>
-          <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="simular-turma" data-i="${i}">${ic('simulador')} Simular notas</button><button class="btn sm" data-a="tarefa-turma" data-i="${i}">${ic('mais')} Nova tarefa</button></div>
+          <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="tarefa-turma" data-i="${i}">${ic('mais')} Nova tarefa</button></div>
         </details>
       </div>`;
     }).join('')}</div>`;
@@ -250,12 +262,17 @@ var SMT = (() => {
     const { dados, modelo } = S;
     const ts = [...dados.turmas].sort((a, b) => ((a.resumo?.restam ?? 99) - (b.resumo?.restam ?? 99)));
     const total = ts.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
+    const totalDias = ts.reduce((a, t) => a + (t.freq ? t.freq.registros.filter(x => x.faltas > 0).length : 0), 0);
     const risco = ts.filter(t => ['bad', 'warn'].includes(t.resumo?.nivel)).length;
     const linha = t => {
       const r = t.resumo || {}, f = t.freq;
       const pct = r.limite ? Math.min(100, Math.round(100 * r.faltas / r.limite)) : 0;
       const cor = { bad: 'var(--bad)', warn: 'var(--warn)', ok: 'var(--ok)' }[r.nivel] || 'var(--ac)';
-      const status = r.restam == null ? (r.faltas != null ? pl(r.faltas, 'falta') : '—') : r.restam < 0 ? `passou ${-r.restam}` : `pode faltar +${r.restam}`;
+      const diasF = f ? f.registros.filter(x => x.faltas > 0).length : null;
+      const status = r.restam == null ? (r.faltas != null ? pl(r.faltas, 'falta') : '—') : r.restam < 0 ? `passou ${pl(-r.restam, 'aula')} do limite` : `pode faltar ${pl(r.restam, 'aula')}${r.diasRestam != null ? ` · ≈${pl(r.diasRestam, 'dia')}` : ''}`;
+      const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const porMes = []; (f ? f.registros : []).forEach(x => { const d = parseData(x.data); if (!d) return; const k = d.getMonth(); let g = porMes[porMes.length - 1]; if (!g || g.m !== k) porMes.push(g = { m: k, xs: [] }); g.xs.push({ ...x, d }); });
+      const diasNovo = porMes.length ? `<div class="fmeses">${porMes.map(g => `<div class="fmes"><span class="fm">${MES[g.m]}</span><div class="fdias">${g.xs.map(x => { const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`]; const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`; return `<span class="fd ${x.faltas == null ? 'nr' : x.faltas ? 'f' : 'p'}" title="${esc(tip)}">${x.d.getDate()}${x.faltas ? `<sup>${x.faltas}</sup>` : ''}</span>`; }).join('')}</div></div>`).join('')}</div>` : '';
       const dias = f && f.registros.length ? `<div class="dias">${f.registros.map(x => {
         const vis = modelo.hist.faltas[`${chaveT(t)}|${x.data}`];
         const tip = `${x.data}: ${x.sit}${vis && vis.visto ? ' (lançada em ' + fmt(deIso(vis.visto)) + ')' : ''}`;
@@ -265,22 +282,23 @@ var SMT = (() => {
       const det = [
         r.restam != null && r.restam >= 0 && r.diasRestam != null ? `Pode faltar mais <b>${pl(r.restam, 'aula')}</b> — cerca de <b>${pl(r.diasRestam, 'dia')} de aula</b>.` : '',
         f && f.aulasRegistradas ? `Presença: <b>${Math.round(100 * f.presencas / f.aulasRegistradas)}%</b> (${f.presencas} de ${f.aulasRegistradas} aulas registradas${f.aulasCH ? `; ${f.aulasCH} no semestre` : ''}).` : '',
-        datasF ? `Faltou em: ${esc(datasF)}.` : (f && f.registros.length ? 'Nenhuma falta até agora. 👏' : ''),
+        f && f.registros.length && !datasF ? 'Nenhuma falta até agora. 👏' : '',
       ].filter(Boolean).map(x => `<div>${x}</div>`).join('');
       return `<details class="frow"><summary>
           <span class="dot" style="background:${t.cor};margin:0"></span>
           <span class="fn">${esc(titulo(t.nome))}</span>
           <span class="fb">${r.limite ? `<span class="bar" style="margin:0"><i style="width:${pct}%;background:${cor}"></i></span>` : ''}</span>
-          <span class="fq">${r.faltas != null ? `${r.faltas}${r.limite != null ? `<span class="fade">/${r.limite}</span>` : ''}` : ''}</span>
+          <span class="fq">${r.faltas != null ? `<b>${r.faltas}</b>${r.limite != null ? `<span class="fade">/${r.limite}</span>` : ''} aulas${diasF ? `<small>em ${pl(diasF, 'dia')}</small>` : ''}` : ''}</span>
           <span class="chip ${r.nivel === 'na' ? 'gray' : r.nivel}">${esc(status)}</span>
+          <span class="seta" aria-hidden="true">›</span>
         </summary>
-        <div class="fdet small">${det || `<div class="muted">${esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros de frequência ainda.'))}</div>`}${dias}</div></details>`;
+        <div class="fdet small">${det || `<div class="muted">${esc(t.freqErro || (dados.parcial ? 'Carregando…' : 'Sem registros de frequência ainda.'))}</div>`}${diasNovo || dias}</div></details>`;
     };
-    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">O limite é 25% das aulas de cada disciplina. Toque numa turma para ver aula por aula.</p>
-      <div class="grid"><div class="stat"><div class="v">${total}</div><div class="k">${total === 1 ? 'falta' : 'faltas'} no semestre</div></div>
+    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">O limite é 25% das aulas de cada disciplina. Toque numa disciplina (›) para ver dia a dia.</p>
+      <div class="grid"><div class="stat"><div class="v">${total}</div><div class="k">${total === 1 ? 'aula perdida' : 'aulas perdidas'}${totalDias ? ` em ${pl(totalDias, 'dia')}` : ''} no semestre</div></div>
         <div class="stat"><div class="v" ${risco ? 'style="color:var(--warn)"' : ''}>${risco}</div><div class="k">${risco === 1 ? 'turma perto do limite' : 'turmas perto do limite'}</div></div></div>
       <div class="card flist">${ts.map(linha).join('') || vazio('Nenhuma turma.')}</div>
-      <p class="small fade"><span class="dia" style="display:inline-block;vertical-align:middle"></span> presente · <span class="dia f" style="display:inline-block;vertical-align:middle">2</span> faltas na aula · <span class="dia nr" style="display:inline-block;vertical-align:middle"></span> ainda sem registro</p>`;
+      <p class="small fade leg-f"><span class="fd p">5</span> presente <span class="fd f">5<sup>2</sup></span> faltou (nº de aulas perdidas) <span class="fd nr">5</span> ainda sem registro</p>`;
   }
 
   /* ---------------- SEMANAS ---------------- */
@@ -328,15 +346,30 @@ var SMT = (() => {
     const ts = dados.turmas;
     const anteriores = dados.notas.filter(x => x.titulo !== dados.periodo || !ts.length).length;
     return `<h2>Notas ${esc(dados.periodo)}</h2><p class="sub">Notas de cada turma, avaliação por avaliação, como aparecem na turma virtual. Notas abaixo de ${f1(S.cfg.mediaAprov)} ficam em vermelho.</p>
+      ${ts.length > 1 ? resumoNotas(S, ts) : ''}
       <div class="stack" data-ordem="notas">${ts.map(t => cartaoNotaTurma(S, t)).join('') || vazio('Nenhuma turma neste semestre.')}</div>
       ${anteriores ? `<h3 style="margin:22px 0 10px;font-size:15px">Semestres anteriores</h3>
       <div class="acts" style="margin-bottom:12px"><input type="search" data-in="q-notas" placeholder="Filtrar disciplina, código ou situação…" value="${esc(S.filtroNotas || '')}" style="flex:1;min-width:220px"><button class="btn" data-a="csv">${ic('down')} Exportar histórico (CSV)</button></div>
       <div id="lista-notas">${listaNotas(S)}</div>` : ''}`;
   }
   /** Cartão de uma turma na tela Notas: avaliações individuais da turma virtual (ou, na falta delas, as unidades do relatório). */
+  /** Resumo de todas as turmas: média, situação e quantas avaliações já saíram. Clicar leva ao cartão. */
+  function resumoNotas(S, ts) {
+    const ordem = { bad: 0, warn: 1, '': 2, gray: 3, ok: 4 };
+    const linhas = ts.map(t => { const n = statusNota(S, t), pl0 = N.planoAvaliacao(t) || [], tot = pl0.filter(x => !x.notaUnid || x.fixaUnid == null).length, lan = pl0.filter(x => x.nota != null || x.fixaUnid != null).length; return { t, n, tot: pl0.length, lan, cls: n.cls || (n.media == null ? 'gray' : '') }; })
+      .sort((a, b) => ordem[a.cls] - ordem[b.cls]);
+    return `<div class="card rn">${linhas.map(({ t, n, tot, lan, cls }) => `<button class="rn-l" data-a="ir-nota" data-id="${esc(chaveT(t))}">
+        <span class="dot" style="background:${t.cor};margin:0"></span><span class="rn-n">${esc(titulo(t.nome))}</span>
+        <span class="rn-p small muted">${tot ? `${lan}/${tot} lançadas` : ''}</span>
+        <b class="rn-m">${n.media != null ? f1(n.media) : '—'}</b><span class="chip ${cls}">${esc(n.txt || '—')}</span></button>`).join('')}</div>`;
+  }
   /** Tabela no formato da turma virtual: Unid. 1 (P1T, P1E, Nota) | Unid. 2 (…) | Reposição | Resultado… */
   function tabelaSigaa(S, t) {
     const a = t.aval, meta = S.cfg.mediaAprov;
+    const plano = N.planoAvaliacao(t) || [];
+    const sim = plano.length ? N.simularPlano(plano.map(x => ({ ...x, v: x.nota })), meta) : null;
+    const alvo = sim && sim.estado === 'possivel' ? sim.precisa : null;
+    const itemDe = c => plano.find(x => x.unid === c.grupo && (x.abrev === c.h || (x.notaUnid && /^nota$/i.test(c.h))));
     const cols = (a.colunas || []).filter(c => !/^(faltas?|sit\.?|situa[çc][ãa]o)$/i.test(c.h));
     if (!cols.length) return '';
     const nomeAval = c => { const av = (a.avals || []).find(x => x.abrev === c.h); return (av && av.nome && av.nome !== c.h ? av.nome : '') || c.title || ''; };
@@ -344,31 +377,51 @@ var SMT = (() => {
     const ehNota = c => /^(nota|m[ée]dia|resultado)$/i.test(c.h);
     const cel = c => {
       const v = N.num(c.v), baixa = v != null && v < meta;
-      return `<td class="n ${ehNota(c) ? 'nu' : ''} ${baixa ? 'baixa' : ''}" title="${esc([nomeAval(c), baixa ? 'abaixo da média' : ''].filter(Boolean).join(' · '))}">${c.v ? esc(c.v) + (baixa ? '<span class="sr"> (abaixo da média)</span>' : '') : '<span class="fade">—</span>'}</td>`;
+      const it = itemDe(c), pend = !c.v && alvo != null && it && it.nota == null && it.fixaUnid == null && (!ehNota(c) || it.notaUnid);
+      return `<td class="n ${ehNota(c) ? 'nu' : ''} ${baixa ? 'baixa' : ''}" title="${esc([nomeAval(c), baixa ? 'abaixo da média' : '', pend ? `precisa de pelo menos ${f1(alvo)} para fechar média ${f1(meta)}` : ''].filter(Boolean).join(' · '))}">${c.v ? esc(c.v) + (baixa ? '<span class="sr"> (abaixo da média)</span>' : '') : pend ? `<span class="meta">≥ ${f1(alvo)}</span>` : '<span class="fade">—</span>'}</td>`;
     };
     return `<div class="tw"><table class="tsig">
       <thead><tr>${grupos.map(g => g.grupo ? `<th colspan="${g.cols.length}" class="g">${esc(g.grupo)}</th>` : `<th rowspan="2" class="g">${esc(g.cols[0].h)}</th>`).join('')}</tr>
-        <tr>${grupos.filter(g => g.grupo).flatMap(g => g.cols).map(c => `<th class="${ehNota(c) ? 'nu' : ''}" title="${esc(nomeAval(c))}">${esc(c.h)}</th>`).join('')}</tr></thead>
+        <tr>${grupos.filter(g => g.grupo).flatMap(g => g.cols).map(c => { const it = itemDe(c), p = it && !it.notaUnid && plano.some(x => x.unid === c.grupo && x !== it && x.peso !== it.peso) ? it.peso : null; return `<th class="${ehNota(c) ? 'nu' : ''}" title="${esc([nomeAval(c), p && it.pesoEstimado ? `peso deduzido das notas da ${it.pesoEstimado}` : ''].filter(Boolean).join(' · '))}">${esc(c.h)}${p ? `<small class="peso">${it.pesoEstimado ? '≈' : ''}peso ${esc(String(p).replace('.', ','))}</small>` : ''}</th>`; }).join('')}</tr></thead>
       <tbody><tr>${grupos.flatMap(g => g.cols).map(cel).join('')}</tr></tbody></table></div>`;
   }
-  function cartaoNotaTurma(S, t) {
+  /** Plano de avaliações da turma (tabela no formato da turma virtual + dicas), ou as unidades do relatório. */
+  function corpoNotas(S, t) {
     const temAval = t.aval && !t.aval.vazio && (t.aval.colunas || []).length;
-    const n = statusNota(S, t);
-    const sit = t.situacao && !/matric/i.test(t.situacao) ? `<span class="sit ${sitClass(t.situacao)}">${esc(t.situacao)}</span>` : '';
     let corpo;
     if (temAval) {
       const infos = t.aval.infos || [];
-      corpo = tabelaSigaa(S, t) + (infos.length ? `<details class="small" style="margin-top:8px"><summary class="muted">Como a média é calculada <span class="arr">▶</span></summary>${infos.map(x => `<div class="res inf" style="padding:6px 10px;margin-top:4px">${esc(x)}</div>`).join('')}</details>` : '');
+      const pl0 = N.planoAvaliacao(t) || [], est = pl0.find(x => x.pesoEstimado), sm = pl0.length ? N.simularPlano(pl0.map(x => ({ ...x, v: x.nota })), S.cfg.mediaAprov) : null;
+      const dica = [sm && sm.estado === 'possivel' ? `<b>≥ ${f1(sm.precisa)}</b> = nota mínima em cada avaliação que falta para fechar média ${f1(S.cfg.mediaAprov)}.` : sm && sm.estado === 'garantido' ? 'Média garantida mesmo tirando 0 no que falta. 🎉' : '', est ? `Pesos com ≈ foram deduzidos das notas da ${esc(est.pesoEstimado)} (o SIGAA não informa).` : ''].filter(Boolean);
+      corpo = tabelaSigaa(S, t) + (dica.length ? `<div class="small muted" style="margin-top:8px">${dica.join(' ')}</div>` : '') + (infos.length ? `<details class="small" style="margin-top:8px"><summary class="muted">Como a média é calculada <span class="arr">▶</span></summary>${infos.map(x => `<div class="res inf" style="padding:6px 10px;margin-top:4px">${esc(x)}</div>`).join('')}</details>` : '');
     } else {
       const un = t.unidades || [];
       corpo = (un.length ? `<div class="tw"><table class="tsig"><thead><tr>${un.map(u => `<th class="g">${esc(u.h)}</th>`).join('')}</tr></thead><tbody><tr>${un.map(u => `<td class="n nu ${u.v != null && u.v < S.cfg.mediaAprov ? 'baixa' : ''}">${u.v != null ? f1(u.v) : '<span class="fade">—</span>'}</td>`).join('')}</tr></tbody></table></div>` : '')
         + `<div class="small fade" style="margin-top:8px">${S.dados.parcial ? 'Carregando as notas da turma…' : `Notas por avaliação indisponíveis${t.avalErro ? ': ' + esc(t.avalErro) : ' — clique em atualizar (R).'}`}</div>`;
     }
+    return corpo;
+  }
+  /** Fechamento por unidade: [{rot:'N1', v:8.3, pend:['P2T','P2E']}] */
+  function fechamento(S, t) {
+    const plano = N.planoAvaliacao(t);
+    const rot = (s, i) => 'N' + ((/(\d+)/.exec(s || '') || [])[1] || i + 1);
+    if (plano) return [...new Set(plano.map(x => x.unid))].map((g, i) => {
+      const xs = plano.filter(x => x.unid === g), nu = xs.find(x => x.notaUnid);
+      const v = xs[0].fixaUnid != null ? xs[0].fixaUnid : nu ? nu.nota : null;
+      return { rot: rot(g, i), v, pend: v == null ? xs.filter(x => x.nota == null && !x.notaUnid).map(x => x.abrev) : [] };
+    });
+    return (t.unidades || []).map((u, i) => ({ rot: rot(u.h, i), v: u.v, pend: [] }));
+  }
+  function cartaoNotaTurma(S, t) {
+    const temAval = t.aval && !t.aval.vazio && (t.aval.colunas || []).length;
+    const n = statusNota(S, t);
+    const sit = t.situacao && !/matric/i.test(t.situacao) ? `<span class="sit ${sitClass(t.situacao)}">${esc(t.situacao)}</span>` : '';
+    const corpo = corpoNotas(S, t);
     return `<div class="card nt-card" data-id="${esc(chaveT(t))}" style="border-left:4px solid ${t.cor}">
       <div class="nt-h"><div><h3 style="margin:0">${esc(titulo(t.nome))}</h3><div class="small muted">${[t.codigo, t.resumo && t.resumo.faltas != null ? pl(t.resumo.faltas, 'falta') : ''].filter(Boolean).map(esc).join(' · ')} ${sit}</div></div>
         <div class="nt-m"><span class="small muted">Média</span><b>${n.media != null ? f1(n.media) : '—'}</b>${n.txt ? `<span class="chip ${n.cls || 'gray'}">${esc(n.txt)}</span>` : ''}</div></div>
       ${corpo}
-      <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="simular-turma" data-i="${S.dados.turmas.indexOf(t)}">${ic('simulador')} Simular</button><button class="btn sm" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">${ic('ext')} Abrir turma virtual</button></div></div>`;
+      <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">${ic('ext')} Abrir turma virtual</button></div></div>`;
   }
   function listaNotas(S) {
     const { dados, modelo } = S, q = busca(S.filtroNotas || '');
@@ -394,44 +447,6 @@ var SMT = (() => {
         <div class="tw" style="margin-top:10px"><table><thead><tr>${s.headers.map(x => `<th>${esc(curto(x))}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div></details>`;
     }).join('');
     return out || `<div class="card">${vazio('Nada encontrado.')}</div>`;
-  }
-
-  /* ---------------- SIMULADOR ---------------- */
-  /** Campos do simulador: pelas avaliações da turma (com pesos) quando existirem; senão, pelas unidades. */
-  function valoresSim(S, t) {
-    const sv = (S.pessoal.sim || {})[chaveT(t)] || {};
-    const hip = k => sv[k] !== undefined && sv[k] !== '' ? N.num(sv[k]) : null;
-    const plano = N.planoAvaliacao(t);
-    if (plano) return { plano, campos: plano.map((a, j) => ({ ...a, k: 'a' + j, h: a.abrev, tip: `${a.nome}${a.peso !== 1 ? ` · peso ${a.peso}` : ''}${a.unid ? ` · ${a.unid}` : ''}`, lan: a.nota, v: a.nota != null ? a.nota : hip('a' + j), raw: a.nota != null ? f1(a.nota) : (sv['a' + j] ?? '') })) };
-    let un = t.unidades || [];
-    if (!un.length) un = Array.from({ length: S.cfg.unidadesPadrao || 2 }, (_, j) => ({ h: `Unidade ${j + 1}`, v: null }));
-    return { plano: null, campos: un.map((u, j) => ({ k: j, h: curto(u.h), tip: u.h, lan: u.v, v: u.v != null ? u.v : hip(j), raw: u.v != null ? f1(u.v) : (sv[j] ?? '') })) };
-  }
-  function vSimulador(S) {
-    return `<h2>Simulador de notas</h2><p class="sub">Notas já lançadas aparecem em cinza. Digite notas hipotéticas nas outras para ver sua média — ou deixe em branco para saber quanto precisa tirar.</p>
-      <div class="card acts"><label class="f">Média para aprovação<input type="number" step="0.1" min="0" max="10" data-in="meta" value="${esc(S.cfg.mediaAprov)}" style="width:110px"></label>
-      <span class="small muted" style="max-width:560px">Quando o professor cadastrou as avaliações no SIGAA, o cálculo usa os <b>pesos de cada avaliação</b> (média ponderada em cada unidade, depois média das unidades). Senão, média aritmética das unidades. Recuperação não entra na conta.</span></div>
-      <div class="cols3" data-ordem="simulador">${S.dados.turmas.map((t, i) => {
-        const { plano, campos } = valoresSim(S, t);
-        const grupos = [...new Set(campos.map(c => c.unid || ''))];
-        const inp = c => `<label title="${esc(c.tip)}">${esc(c.h)}${c.peso != null && c.peso !== 1 ? `<span class="fade">×${esc(String(c.peso).replace('.', ','))}</span>` : ''}<input class="nt ${c.lan != null ? 'lan' : ''}" ${c.lan != null ? 'readonly' : ''} inputmode="decimal" data-in="sim" data-i="${i}" data-u="${c.k}" value="${esc(c.raw)}" placeholder="?"></label>`;
-        return `<div class="card sim" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}"><h3>${esc(titulo(t.nome))}${plano ? '<span class="r chip">pelas avaliações da turma</span>' : ''}</h3>
-          ${plano && grupos.length > 1 ? grupos.map(g => `<div class="small b muted" style="margin-top:6px">${esc(g || 'Outras')}</div><div class="uns">${campos.filter(c => (c.unid || '') === g).map(inp).join('')}</div>`).join('') : `<div class="uns">${campos.map(inp).join('')}</div>`}
-          <div id="sr${i}">${resultadoSim(S, i)}</div></div>`;
-      }).join('') || vazio('Nenhuma turma.')}</div>`;
-  }
-  function resultadoSim(S, i) {
-    const t = S.dados.turmas[i], meta = S.cfg.mediaAprov;
-    const { plano, campos } = valoresSim(S, t);
-    const r = plano ? N.simularPlano(campos, meta) : N.simular(campos.map(u => u.v), meta);
-    const oque = plano ? (r.faltam > 1 ? `em cada uma das ${r.faltam} avaliações restantes` : 'na avaliação restante') : (r.faltam > 1 ? `em cada uma das ${r.faltam} unidades restantes` : 'na unidade restante');
-    if (r.estado === 'vazio') return '';
-    if (r.estado === 'aprovado') return `<div class="res ok">Média final <span class="big">${f1(r.media)}</span> — acima de ${f1(meta)} ✔</div>`;
-    if (r.estado === 'abaixo') return `<div class="res bad">Média final <span class="big">${f1(r.media)}</span> — abaixo de ${f1(meta)}. Provável recuperação/exame.</div>`;
-    const atual = r.media != null ? `Média atual ${f1(r.media)} · ` : '';
-    if (r.estado === 'garantido') return `<div class="res ok">${atual}Já garantiu ${f1(meta)} mesmo tirando 0 ${r.faltam > 1 ? 'nas restantes' : 'na restante'}. 🎉</div>`;
-    if (r.estado === 'impossivel') return `<div class="res bad">${atual}Precisaria de ${f1(r.precisa)} — acima de 10. Foque na recuperação.</div>`;
-    return `<div class="res ${r.precisa >= 8 ? 'warn' : 'inf'}">${atual}Precisa de <span class="big">${f1(r.precisa)}</span> ${oque}.</div>`;
   }
 
   /* ---------------- DESEMPENHO ---------------- */
@@ -621,7 +636,7 @@ var SMT = (() => {
       <div class="card"><h3>Aparência</h3><label class="f">Tema<select data-cfg="tema"><option value="auto" ${c.tema === 'auto' ? 'selected' : ''}>Automático (do sistema)</option><option value="claro" ${c.tema === 'claro' ? 'selected' : ''}>Claro</option><option value="escuro" ${c.tema === 'escuro' ? 'selected' : ''}>Escuro</option></select></label>
         <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-cfg="autoAbrir" ${c.autoAbrir ? 'checked' : ''}> Abrir o painel automaticamente ao entrar no Portal do Discente</label>
         <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" data-cfg="checarAtualizacao" ${c.checarAtualizacao !== false ? 'checked' : ''}> Avisar quando houver versão nova no GitHub</label>
-        <p class="small muted" style="margin:12px 0 6px">Arraste os cartões pela alça <b>⠿</b> (Início, Turmas, Faltas e Simulador) para organizar do seu jeito.</p><button class="btn sm" data-a="ordem-reset">Restaurar organização original</button></div>
+        <p class="small muted" style="margin:12px 0 6px">Arraste os cartões pela alça <b>⠿</b> (Início, Turmas e Notas) para organizar do seu jeito.</p><button class="btn sm" data-a="ordem-reset">Restaurar organização original</button></div>
       <div class="card"><h3>Notas</h3><div class="acts"><label class="f">Média para aprovação<input type="number" step="0.1" min="0" max="10" data-cfg="mediaAprov" value="${esc(c.mediaAprov)}" style="width:110px"></label>
         <label class="f">Unidades por disciplina (quando o SIGAA não mostra)<input type="number" min="1" max="6" data-cfg="unidadesPadrao" value="${esc(c.unidadesPadrao)}" style="width:110px"></label></div></div>
       <div class="card"><h3>Semestre</h3><p class="small muted" style="margin-top:0">Usado na exportação para o Google Agenda e na contagem de semanas. Em branco = detectar pelo SIGAA${S.modelo.lim.ini ? ` (detectado: ${fmt(S.modelo.lim.ini)} a ${fmt(S.modelo.lim.fim)})` : ''}.</p>
@@ -680,7 +695,6 @@ var SMT = (() => {
     const recursos = [
       ['Início', 'aulas de hoje, próximas provas, alertas de falta e nota, novidades'],
       ['Turmas', 'notas por avaliação, método do professor, anotações, Google Agenda'],
-      ['Simulador', 'quanto precisa tirar, com os pesos de cada avaliação'],
       ['Horário', 'grade com os horários da UNIFEI e exportação .ics'],
       ['Agenda', 'provas, aulas práticas e suas próprias tarefas'],
       ['Desempenho', 'gráfico da média por semestre'],
@@ -701,12 +715,12 @@ var SMT = (() => {
       </div></div>`;
   }
 
-  const TELAS = { inicio: vInicio, turmas: vTurmas, semanas: vSemanas, faltas: vFaltas, notas: vNotas, simulador: vSimulador, desempenho: vDesempenho, horario: vHorario, agenda: vAgenda, funcoes: vFuncoes, ajustes: vAjustes, sobre: vSobre };
+  const TELAS = { inicio: vInicio, turmas: vTurmas, semanas: vSemanas, faltas: vFaltas, notas: vNotas, desempenho: vDesempenho, horario: vHorario, agenda: vAgenda, funcoes: vFuncoes, ajustes: vAjustes, sobre: vSobre };
 
   /** Esqueleto mostrado enquanto não há nenhum dado. */
   const esqueleto = (msg, p) => `<div class="load"><div class="msg b">${esc(msg)}</div><div class="pg"><i style="width:${Math.round((p || 0) * 100)}%"></i></div><div class="small">Na primeira vez leva uns segundos: o SIGAA só mostra a frequência entrando em cada turma.<br>Depois disso o painel abre na hora.</div></div>
     <div class="grid">${'<div class="sk" style="height:76px"></div>'.repeat(4)}</div><div class="cols"><div class="sk" style="height:260px"></div><div class="sk" style="height:260px"></div></div>`;
 
-  return { faixaAtualizacao, blocoAtualizacao, ic, VIEWS, nomeView, TELAS, listaNotas, listaFuncoes, resultadoSim, novidades, sitClass, esqueleto, itensAgenda, chaveT };
+  return { faixaAtualizacao, blocoAtualizacao, ic, VIEWS, nomeView, TELAS, listaNotas, listaFuncoes, novidades, sitClass, esqueleto, itensAgenda, chaveT };
 })();
 if (typeof module !== 'undefined') module.exports = SMT;

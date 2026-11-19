@@ -308,7 +308,7 @@
           toast('Arquivo .ics baixado — abra-o ou importe no Google Agenda.'); break;
         }
         case 'ics-agenda': N.baixar('agenda-sigaa.ics', N.gerarICS(N.eventosAgenda(d, S.pessoal)), 'text/calendar'); toast('Agenda exportada.'); break;
-        case 'simular-turma': { const id = T.chaveT(d.turmas[+el.dataset.i]); ir('simulador'); setTimeout(() => { const x = [...root.querySelectorAll('.sim[data-id]')].find(y => y.dataset.id === id); if (x) { x.scrollIntoView({ block: 'center' }); const inp = x.querySelector('input:not([readonly])'); if (inp) inp.focus(); } }, 30); break; }
+        case 'ir-nota': { const x = [...root.querySelectorAll('.nt-card[data-id]')].find(y => y.dataset.id === el.dataset.id); if (x) { x.scrollIntoView({ block: 'start' }); x.classList.add('pisca'); setTimeout(() => x.classList.remove('pisca'), 1200); } break; }
         case 'tarefa-turma': S.turmaTarefa = d.turmas[+el.dataset.i].nome; ir('agenda'); setTimeout(() => { const i = $('#nt-txt'); i && i.focus(); }, 0); break;
         case 'add-tarefa': {
           const txt = $('#nt-txt').value.trim(); if (!txt) { $('#nt-txt').focus(); return; }
@@ -357,16 +357,7 @@
     if (k === 'q-func') { S.buscaFuncoes = el.value; $('#lista-func').innerHTML = T.listaFuncoes(S); }
     else if (k === 'q-notas') { S.filtroNotas = el.value; $('#lista-notas').innerHTML = T.listaNotas(S); }
     else if (k === 'anot') { S.pessoal.anot[el.dataset.k] = el.value; salvarPessoal(); }
-    else if (k === 'sim') {
-      const t = S.dados.turmas[+el.dataset.i], key = T.chaveT(t);
-      (S.pessoal.sim[key] = S.pessoal.sim[key] || {})[el.dataset.u] = el.value.trim();
-      const v = N.num(el.value); el.style.color = el.value && (v == null || v < 0 || v > 10) ? 'var(--bad)' : '';
-      $('#sr' + el.dataset.i).innerHTML = T.resultadoSim(S, +el.dataset.i); salvarPessoal();
-    } else if (k === 'meta') {
-      const v = N.num(el.value); if (v == null || v < 0 || v > 10) return;
-      S.cfg.mediaAprov = v; salvarCfg();
-      S.dados.turmas.forEach((_, i) => { const r = $('#sr' + i); if (r) r.innerHTML = T.resultadoSim(S, i); });
-    } else if (k === 'pal') filtrarPaleta(el.value);
+    else if (k === 'pal') filtrarPaleta(el.value);
     else if (k === 'ini-bloco') {
       const o = new Set(S.pessoal.inicioOcultos || []); if (el.checked) o.delete(el.dataset.k); else o.add(el.dataset.k);
       S.pessoal.inicioOcultos = [...o]; salvarPessoal(); ir('inicio', true);
