@@ -45,7 +45,7 @@ var SMT = (() => {
 
   function chipFaltas(r) {
     if (!r || r.faltas == null) return '';
-    if (r.limite == null) return `<span class="chip gray">${r.faltas} falta(s)</span>`;
+    if (r.limite == null) return `<span class="chip gray">${pl(r.faltas, 'falta')}</span>`;
     return `<span class="chip ${r.nivel}">${r.faltas}/${r.limite} faltas</span>`;
   }
 
@@ -60,7 +60,7 @@ var SMT = (() => {
       if (!x.visto || x.visto < lim || !x.f) continue;
       const [id, data] = k.split('|');
       const t = S.dados.turmas.find(y => chaveT(y) === id);
-      out.push({ visto: x.visto, tipo: 'falta', html: `<b>${esc(t ? titulo(t.nome) : id)}</b> — ${x.f} falta(s) na aula de ${esc(data.slice(0, 5))}`, cor: t ? t.cor : 'var(--fade)' });
+      out.push({ visto: x.visto, tipo: 'falta', html: `<b>${esc(t ? titulo(t.nome) : id)}</b> — ${pl(x.f, 'falta')} na aula de ${esc(data.slice(0, 5))}`, cor: t ? t.cor : 'var(--fade)' });
     }
     return out.sort((a, b) => b.visto.localeCompare(a.visto));
   }
@@ -69,11 +69,11 @@ var SMT = (() => {
     const out = [];
     for (const t of S.dados.turmas) {
       const r = t.resumo || {};
-      if (r.nivel === 'bad') out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: passou ${-r.restam} falta(s) do limite de ${r.limite}.`]);
-      else if (r.nivel === 'warn') out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: só pode faltar mais <b>${r.restam}</b> aula(s)${r.diasRestam != null ? ` (≈ ${r.diasRestam} dia(s) de aula)` : ''}.`]);
+      if (r.nivel === 'bad') out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: passou ${pl(-r.restam, 'falta')} do limite de ${r.limite}.`]);
+      else if (r.nivel === 'warn') out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: só pode faltar mais <b>${r.restam}</b> ${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` (≈ ${pl(r.diasRestam, 'dia')} de aula)` : ''}.`]);
       const sim = N.simular((t.unidades || []).map(u => u.v), S.cfg.mediaAprov);
       if (sim.estado === 'impossivel' && t.unidades.some(u => u.v != null)) out.push(['bad', `<b>${esc(titulo(t.nome))}</b>: nem com 10 nas unidades restantes chega a ${f1(S.cfg.mediaAprov)} — confira a recuperação.`]);
-      else if (sim.estado === 'possivel' && sim.precisa >= 8) out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: precisa de <b>${f1(sim.precisa)}</b> na(s) próxima(s) unidade(s).`]);
+      else if (sim.estado === 'possivel' && sim.precisa >= 8) out.push(['warn', `<b>${esc(titulo(t.nome))}</b>: precisa de <b>${f1(sim.precisa)}</b> nas próximas unidades.`]);
     }
     return out;
   }
@@ -86,6 +86,8 @@ var SMT = (() => {
     return it.sort((a, b) => (a.d ? +a.d : 9e15) - (b.d ? +b.d : 9e15) || String(a.hora || '').localeCompare(String(b.hora || '')));
   }
 
+  /** "1 falta" / "3 faltas" */
+  const pl = (n, p) => `${n} ${Math.abs(+n) === 1 ? p : p + 's'}`;
   const vazio = msg => `<p class="empty">${msg}</p>`;
   /** Botão que abre o Google Agenda com o evento preenchido. */
   const gbtn = (e, rotulo) => `<a class="btn sm gcal" href="${esc(N.linkGoogle(e))}" target="_blank" rel="noopener" title="Adicionar ao Google Agenda: ${esc(e.titulo)}">${ic('mais')} ${esc(rotulo || 'Google Agenda')}</a>`;
@@ -113,7 +115,7 @@ var SMT = (() => {
     stats.push(`<div class="stat"><div class="v">${totF}</div><div class="k">faltas em ${esc(dados.periodo)}</div></div>`);
     const medias = dados.turmas.map(t => t.mediaParcial).filter(x => x != null);
     if (medias.length) stats.push(`<div class="stat"><div class="v">${f1(medias.reduce((a, b) => a + b, 0) / medias.length)}</div><div class="k">média parcial do semestre</div></div>`);
-    h += `<div class="grid">${stats.join('')}</div><div class="cols"><div data-ordem="inicio:a">`;
+    h += `<div class="cols"><div data-ordem="inicio:a">`;
 
     // hoje
     const aulas = N.aulasDoDia(dados.turmas, hj, S.cfg), agoraMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -121,7 +123,7 @@ var SMT = (() => {
     if (!aulas.length || aulas.every(a => N.minutos(a.fim) < agoraMin)) { for (let i = 1; i < 7 && !amanha; i++) { const d = new Date(+hj + i * DIA_MS); const x = N.aulasDoDia(dados.turmas, d, S.cfg); if (x.length) amanha = { d, x }; } }
     h += `<div class="card" data-id="hoje"><h3>${ic('horario')} Aulas de hoje <a class="r small" href="#" data-v="horario">grade completa →</a></h3>${aulas.length ? aulas.map(a => {
       const st = N.minutos(a.fim) < agoraMin ? 'passou' : N.minutos(a.ini) <= agoraMin ? 'agora' : '';
-      return `<div class="tl ${st}"><div class="hr"><b>${esc(a.ini)}</b>${esc(a.fim)}</div><div class="bx" style="border-color:${a.t.cor}"><b>${esc(titulo(a.t.nome))}</b>${a.lab ? ' <span class="chip warn">laboratório</span>' : ''}${st === 'agora' ? ' <span class="chip">agora</span>' : ''}<div class="small muted">${esc(a.t.local)} · ${a.qtd} aula(s)</div></div></div>`;
+      return `<div class="tl ${st}"><div class="hr"><b>${esc(a.ini)}</b>${esc(a.fim)}</div><div class="bx" style="border-color:${a.t.cor}"><b>${esc(titulo(a.t.nome))}</b>${a.lab ? ' <span class="chip warn">laboratório</span>' : ''}${st === 'agora' ? ' <span class="chip">agora</span>' : ''}<div class="small muted">${esc(a.t.local)} · ${pl(a.qtd, 'aula')}</div></div></div>`;
     }).join('') : vazio('Sem aulas hoje. 🎉')}
       ${amanha ? `<div class="small muted" style="margin-top:10px">Próximo dia de aula: <b>${esc(N.dataLonga(amanha.d))}</b> — ${amanha.x.map(a => `${esc(a.ini)} ${esc(titulo(a.t.nome))}`).join(' · ')}</div>` : ''}</div>`;
 
@@ -137,6 +139,7 @@ var SMT = (() => {
     const primeiraVez = modelo.hist.inicio === isoDia(hj) && !nov.length;
     h += `<div class="card" data-id="nov"><h3>${ic('notas')} Novidades dos últimos 7 dias</h3>${nov.length ? nov.slice(0, 12).map(n => `<div class="row"><span class="dot" style="background:${n.cor}"></span><div class="grow"><span class="chip ${n.tipo === 'falta' ? 'bad' : 'ok'}">${n.tipo}</span> <span class="small fade">${fmt(deIso(n.visto))}</span><br>${n.html}</div></div>`).join('')
       : vazio(primeiraVez ? 'Primeira vez aqui: a partir de agora o SIGAA+ anota quando cada nota e falta aparece e mostra aqui o que for novo.' : 'Nenhuma nota ou falta nova desde ' + fmt(new Date(hj - 7 * DIA_MS)) + '.')}</div>`;
+    if (S.convite) h += conviteLinkedin(S);
     h += `</div><div data-ordem="inicio:b">`;
 
     h += `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
@@ -146,7 +149,7 @@ var SMT = (() => {
     if (dados.atualizacoes.length) h += `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => `<div class="row"><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`).join('')}</div>`;
     const favs = (S.pessoal.favs || []).map(act => dados.menu.find(m => m.act === act)).filter(Boolean);
     if (favs.length) h += `<div class="card" data-id="favs"><h3>★ Atalhos favoritos</h3><div class="acts">${favs.map(m => `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}">${esc(m.label)} ${ic('ext')}</button>`).join('')}</div></div>`;
-    return h + `</div></div>`;
+    return h + `</div></div><h3 style="margin:8px 0 10px;font-size:16px">Seus índices</h3><div class="grid">${stats.join('')}</div>`;
   }
 
   /* ---------------- TURMAS ---------------- */
@@ -160,7 +163,7 @@ var SMT = (() => {
       return `<div class="card" id="t${i}" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}">
         <h3 style="margin-bottom:2px">${esc(titulo(t.nome))}</h3>
         <div class="small muted">${esc(t.codigo)}${t.codigo ? ' · ' : ''}${esc(t.local)}</div>
-        <div class="small" style="margin-top:6px">${(t.fixos || t.horarios).map(c => `<span class="chip gray" title="${esc(c)}">${esc(N.textoHorario(c, S.cfg) || c)}</span>`).join('')}${t.datas.length ? `<span class="chip warn">${t.datas.length} aula(s) em datas específicas</span>` : ''}</div>
+        <div class="small" style="margin-top:6px">${(t.fixos || t.horarios).map(c => `<span class="chip gray" title="${esc(c)}">${esc(N.textoHorario(c, S.cfg) || c)}</span>`).join('')}${t.datas.length ? `<span class="chip warn">${pl(t.datas.length, 'aula')} em datas específicas</span>` : ''}</div>
         <div style="margin-top:12px" class="small"><b>Notas</b> ${(t.unidades || []).length ? t.unidades.map(u => `<span class="chip ${u.v == null ? 'gray' : ''}">${esc(curto(u.h))}: ${u.v == null ? '—' : f1(u.v)}</span>`).join('') : '<span class="fade">sem notas lançadas</span>'}
           ${t.resultado != null ? `<span class="chip ok">Final: ${f1(t.resultado)}</span>` : sim.estado === 'possivel' ? `<span class="chip warn">precisa ${f1(sim.precisa)}</span>` : sim.estado === 'impossivel' ? '<span class="chip bad">abaixo da média</span>' : sim.estado === 'garantido' || sim.estado === 'aprovado' ? '<span class="chip ok">média garantida</span>' : ''}
           ${t.situacao ? `<span class="sit ${sitClass(t.situacao)}">${esc(t.situacao)}</span>` : ''}</div>
@@ -225,7 +228,7 @@ var SMT = (() => {
       const datasF = f ? f.registros.filter(x => x.faltas).map(x => `${x.data.slice(0, 5)} (${x.faltas})`).join(', ') : '';
       return `<div class="card" data-id="${esc(chaveT(t))}"><h3><span class="dot" style="background:${t.cor};margin:0"></span>${esc(titulo(t.nome))}<span class="r">${chipFaltas(r)}</span></h3>
         ${r.faltas != null ? `<div class="bar"><i style="width:${pct}%;background:${cor}"></i></div>
-        <div class="small"><b>${r.faltas}</b> falta(s)${r.limite != null ? ` de no máximo <b>${r.limite}</b> · ${r.restam >= 0 ? `pode faltar mais <b>${r.restam}</b> aula(s)${r.diasRestam != null ? ` <span class="muted">≈ ${r.diasRestam} dia(s) de aula</span>` : ''}` : `<b class="err">passou ${-r.restam} do limite</b>`}` : ''}</div>` : ''}
+        <div class="small"><b>${r.faltas}</b> ${r.faltas === 1 ? 'falta' : 'faltas'}${r.limite != null ? ` de no máximo <b>${r.limite}</b> · ${r.restam >= 0 ? `pode faltar mais <b>${r.restam}</b> ${r.restam === 1 ? 'aula' : 'aulas'}${r.diasRestam != null ? ` <span class="muted">≈ ${pl(r.diasRestam, 'dia')} de aula</span>` : ''}` : `<b class="err">passou ${-r.restam} do limite</b>`}` : ''}</div>` : ''}
         ${f && f.aulasRegistradas ? `<div class="muted small">${f.presencas}/${f.aulasRegistradas} aulas com presença · ${f.aulasCH ?? '?'} aulas na carga horária · ${Math.round(100 * f.presencas / f.aulasRegistradas)}% de presença</div>` : ''}
         ${datasF ? `<div class="small" style="margin-top:4px">Faltas em: ${esc(datasF)}</div>` : ''}${dias}</div>`;
     }).join('')}</div>`;
@@ -240,21 +243,23 @@ var SMT = (() => {
       const d = parseData(r.data), w = pega(semanaDe(d));
       w.aulas++;
       if (r.faltas == null) w.nr++;
-      else if (r.faltas > 0) { const v = hist.faltas[`${chaveT(t)}|${r.data}`]; w.faltas.push({ t, r, visto: v && v.visto }); }
+      else if (r.faltas > 0 && passaFiltro(S, { tipo: 'falta', turma: t.nome }, 'semanas')) { const v = hist.faltas[`${chaveT(t)}|${r.data}`]; w.faltas.push({ t, r, visto: v && v.visto }); }
     }
     for (const [k, h] of Object.entries(hist.notas || {})) {
       if (!h.visto) continue;
       const [s, cod, campo] = k.split('|');
       if (s !== dados.periodo) continue;
+      const tn = (dados.turmas.find(t => t.codigo === cod) || {}).nome || nomeDeCodigo(S, s, cod);
+      if (!passaFiltro(S, { tipo: 'nota', turma: tn }, 'semanas')) continue;
       pega(semanaDe(deIso(h.visto))).notas.push({ cod, campo, ...h });
     }
-    for (const a of itensAgenda(S)) if (a.d) pega(semanaDe(a.d)).ativ.push(a);
+    for (const a of itensAgenda(S)) if (a.d && passaFiltro(S, a, 'semanas')) pega(semanaDe(a.d)).ativ.push(a);
     const agora = semanaDe(hoje());
     for (let n = 1; n <= agora; n++) pega(n);
     const nums = [...sem.keys()].filter(n => n > 0).sort((a, b) => b - a);
     const semData = n => { const a = new Date(+ini + (n - 1) * 7 * DIA_MS); return `${fmt(a)} – ${fmt(new Date(+a + 6 * DIA_MS))}`; };
     const baseline = Object.values(hist.notas || {}).some(h => !h.visto);
-    let h = `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA+ anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p><div class="card">`;
+    let h = `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA+ anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p>${barraFiltros(S, 'semanas')}<div class="card">`;
     h += nums.map(n => {
       const w = sem.get(n);
       const totF = w.faltas.reduce((a, x) => a + x.r.faltas, 0);
@@ -262,7 +267,7 @@ var SMT = (() => {
       w.notas.forEach(x => itens.push(`<div class="it"><span class="chip ok">nota</span> <b style="color:${corDe(S, x.cod)}">●</b> ${esc(nomeDeCodigo(S, dados.periodo, x.cod))} — ${esc(curto(x.campo))}: <b>${esc(x.v)}</b>${x.antes ? ` <span class="muted">(antes ${esc(x.antes)})</span>` : ''} <span class="fade small">lançada ${fmt(deIso(x.visto))}</span></div>`));
       w.faltas.sort((a, b) => parseData(a.r.data) - parseData(b.r.data)).forEach(x => itens.push(`<div class="it"><span class="chip bad">${x.r.faltas} falta${x.r.faltas > 1 ? 's' : ''}</span> <b style="color:${x.t.cor}">●</b> ${esc(titulo(x.t.nome))} <span class="fade small">aula de ${esc(x.r.data.slice(0, 5))}${x.visto ? ` · lançada ${fmt(deIso(x.visto))}` : ''}</span></div>`));
       w.ativ.forEach(a => itens.push(`<div class="it"><span class="chip warn">${esc(a.cat)}</span> ${a.feito ? '<s>' : ''}${esc(a.titulo)}${a.feito ? '</s>' : ''} <span class="fade small">${a.turma ? esc(titulo(a.turma)) + ' · ' : ''}${fmt(a.d)} ${esc(a.hora || '')}</span></div>`));
-      const resumo = [totF ? `<span class="chip bad">${totF} falta(s)</span>` : (w.aulas - w.nr > 0 ? '<span class="chip ok">sem faltas</span>' : ''), w.nr ? `<span class="chip gray">${w.nr} aula(s) sem registro</span>` : ''].join('');
+      const resumo = [totF ? `<span class="chip bad">${pl(totF, 'falta')}</span>` : (w.aulas - w.nr > 0 ? '<span class="chip ok">sem faltas</span>' : ''), w.nr ? `<span class="chip gray">${pl(w.nr, 'aula')} sem registro</span>` : ''].join('');
       return `<div class="wk ${n === agora ? 'cur' : ''}"><h3>Semana ${n} <span class="fade small" style="font-weight:400">${semData(n)}${n === agora ? ' · esta semana' : n > agora ? ' · futura' : ''}</span> ${resumo}</h3>${itens.join('') || (resumo ? '' : '<div class="fade small">Nada nesta semana.</div>')}</div>`;
     }).join('');
     return h + '</div>';
@@ -294,7 +299,7 @@ var SMT = (() => {
         + (sim && sim.estado === 'possivel' ? `<div class="small" style="margin-top:4px">Precisa de <b>${f1(sim.precisa)}</b> nas unidades restantes.</div>` : '');
     }
     return `<div class="card" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}"><h3>${esc(titulo(t.nome))}</h3>
-      <div class="small muted">${esc(t.codigo)}${t.resumo && t.resumo.faltas != null ? ` · ${t.resumo.faltas} falta(s)` : ''} ${final}${sit}</div>
+      <div class="small muted">${esc(t.codigo)}${t.resumo && t.resumo.faltas != null ? ` · ${pl(t.resumo.faltas, 'falta')}` : ''} ${final}${sit}</div>
       ${corpo}
       <div class="acts" style="margin-top:10px"><button class="btn sm" data-v="simulador">${ic('simulador')} Simular</button><button class="btn sm" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">${ic('ext')} Turma virtual</button></div></div>`;
   }
@@ -308,7 +313,7 @@ var SMT = (() => {
       const iSit = s.headers.findIndex(h => /situa/i.test(h));
       const sits = iSit >= 0 ? s.linhas.map(c => sitClass(c[iSit])) : [];
       const ok = sits.filter(x => x === 's-ok').length, bad = sits.filter(x => x === 's-bad').length;
-      const resumo = [ok && `${ok} aprovada(s)`, bad && `${bad} reprovada(s)`, s.titulo === dados.periodo && 'em andamento'].filter(Boolean).join(' · ');
+      const resumo = [ok && `${pl(ok, 'aprovada')}`, bad && `${pl(bad, 'reprovada')}`, s.titulo === dados.periodo && 'em andamento'].filter(Boolean).join(' · ');
       const body = linhas.map(c => `<tr>${c.map((v, j) => {
         const hd = s.headers[j] || '';
         if (j === iSit) return `<td>${sitClass(v) ? `<span class="sit ${sitClass(v)}">${esc(v)}</span>` : esc(v)}</td>`;
@@ -385,14 +390,14 @@ var SMT = (() => {
         ${[0, 2, 4, 6, 8, 10].map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('')}
         <line class="ref" x1="${L}" x2="${W - R}" y1="${y(meta)}" y2="${y(meta)}"/><text class="ax" x="${W - R}" y="${y(meta) - 5}" text-anchor="end">média ${f1(meta)}</text>
         ${pts.length > 1 ? `<path class="ar" d="${area}"/><path class="ln" d="${linha}"/>` : ''}
-        ${pts.map((s, i) => `<g><circle class="hit" cx="${x(i)}" cy="${y(s.media)}" r="16"><title>${esc(s.titulo)}: média ${f2(s.media)} · ${s.aprov} aprovada(s), ${s.reprov} reprovada(s)</title></circle><circle class="pt" cx="${x(i)}" cy="${y(s.media)}" r="4.5" pointer-events="none"/>
+        ${pts.map((s, i) => `<g><circle class="hit" cx="${x(i)}" cy="${y(s.media)}" r="16"><title>${esc(s.titulo)}: média ${f2(s.media)} · ${pl(s.aprov, 'aprovada')}, ${pl(s.reprov, 'reprovada')}</title></circle><circle class="pt" cx="${x(i)}" cy="${y(s.media)}" r="4.5" pointer-events="none"/>
           <text class="ax" x="${x(i)}" y="${H - 6}" text-anchor="middle">${esc(s.titulo)}</text></g>`).join('')}
         ${[...new Set([melhor, ult])].map(s => { const i = pts.indexOf(s); return `<text class="lb" x="${x(i)}" y="${y(s.media) - 11}" text-anchor="middle">${f1(s.media)}</text>`; }).join('')}
       </svg><p class="small fade" style="margin:6px 0 0">Passe o mouse nos pontos para ver detalhes. Rótulos: melhor semestre e o mais recente.</p></div>`;
     }
     // barras empilhadas de situação por semestre
     const maxN = Math.max(1, ...d.sems.map(s => s.aprov + s.reprov + s.andamento));
-    h += `<div class="cols"><div class="card"><h3>Situação das disciplinas por semestre</h3>${d.sems.map(s => `<div class="hb" title="${esc(s.titulo)}: ${s.aprov} aprovada(s), ${s.reprov} reprovada(s), ${s.andamento} em andamento"><span class="nm">${esc(s.titulo)}</span><span class="tr">
+    h += `<div class="cols"><div class="card"><h3>Situação das disciplinas por semestre</h3>${d.sems.map(s => `<div class="hb" title="${esc(s.titulo)}: ${pl(s.aprov, 'aprovada')}, ${pl(s.reprov, 'reprovada')}, ${s.andamento} em andamento"><span class="nm">${esc(s.titulo)}</span><span class="tr">
         ${s.aprov ? `<i style="width:${100 * s.aprov / maxN}%;background:var(--ok)"></i>` : ''}${s.reprov ? `<i style="width:${100 * s.reprov / maxN}%;background:var(--bad)"></i>` : ''}${s.andamento ? `<i style="width:${100 * s.andamento / maxN}%;background:var(--ac)"></i>` : ''}</span><span class="small muted" style="width:26px;text-align:right">${s.aprov + s.reprov + s.andamento}</span></div>`).join('')}
       <div class="leg"><span><i style="background:var(--ok)"></i>aprovadas</span><span><i style="background:var(--bad)"></i>reprovadas/trancadas</span><span><i style="background:var(--ac)"></i>em andamento</span></div></div>`;
     const top = [...d.todas].sort((a, b) => b.nota - a.nota).slice(0, 6);
@@ -449,6 +454,30 @@ var SMT = (() => {
       ${aulas.map(linha).join('') || vazio('Nenhuma data encontrada.')}</div>`;
   }
 
+  /* ---------------- FILTROS DA AGENDA ---------------- */
+  // Cada tela (agenda, semanas) guarda seus filtros em S.pessoal.filtros[tela].
+  const TIPOS_FILTRO = {
+    agenda: [['lab', '🧪 Laboratórios'], ['sigaa', '📝 Provas e atividades'], ['tarefa', '✓ Minhas tarefas']],
+    semanas: [['falta', '✕ Faltas'], ['nota', '★ Notas'], ['lab', '🧪 Laboratórios'], ['sigaa', '📝 Provas e atividades'], ['tarefa', '✓ Minhas tarefas']],
+  };
+  const filtroDe = (S, tela) => ({ ocultos: [], turma: '', semFeitas: false, ...(((S.pessoal || {}).filtros || {})[tela] || {}) });
+  /** x.tipo: 'lab' | 'aula' (= lab) | 'sigaa' | 'tarefa' | 'falta' | 'nota' ; x.turma = nome da turma */
+  function passaFiltro(S, x, tela = 'agenda') {
+    const f = filtroDe(S, tela), tipo = x.tipo === 'aula' ? 'lab' : x.tipo;
+    if (f.ocultos.includes(tipo)) return false;
+    if (f.turma && norm(x.turma || '') !== norm(f.turma)) return false;
+    if (f.semFeitas && x.feito) return false;
+    return true;
+  }
+  function barraFiltros(S, tela = 'agenda') {
+    const f = filtroDe(S, tela), ativos = f.ocultos.length + (f.turma ? 1 : 0) + (f.semFeitas ? 1 : 0);
+    return `<div class="card filtros"><span class="small b muted">Filtrar</span>
+      ${TIPOS_FILTRO[tela].map(([k, l]) => `<button class="fchip ${f.ocultos.includes(k) ? '' : 'on'}" data-a="f-tipo" data-tela="${tela}" data-t="${k}" aria-pressed="${!f.ocultos.includes(k)}">${l}</button>`).join('')}
+      <select data-in="f-turma" data-tela="${tela}" aria-label="Filtrar por turma"><option value="">Todas as turmas</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${norm(f.turma) === norm(t.nome) ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select>
+      <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-in="f-feitas" data-tela="${tela}" ${f.semFeitas ? 'checked' : ''}> Esconder tarefas concluídas</label>
+      ${ativos ? `<button class="btn sm" data-a="f-limpar" data-tela="${tela}">Limpar filtros (${ativos})</button>` : ''}</div>`;
+  }
+
   /* ---------------- CALENDÁRIO MENSAL ---------------- */
   const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   /** Todos os compromissos com data (inclui labs passados), indexados por dia ISO. */
@@ -457,7 +486,7 @@ var SMT = (() => {
     S.dados.atividades.forEach(a => add(parseData(a.data), { tipo: 'sigaa', hora: a.hora, titulo: a.titulo, cat: a.tipo || 'Atividade', turma: a.disciplina, cor: corDe(S, a.disciplina) }));
     N.aulasEmDatas(S.dados.turmas, S.cfg).forEach(a => add(a.d, { tipo: 'lab', hora: a.ini, fim: a.fim, titulo: titulo(a.t.nome), cat: 'Laboratório', turma: a.t.nome, local: a.t.local, cor: a.t.cor, code: a.code }));
     (S.pessoal.tarefas || []).forEach(t => add(deIso(t.data), { tipo: 'tarefa', titulo: t.txt, cat: 'Tarefa', turma: t.turma, feito: t.feito, cor: t.turma ? corDe(S, t.turma) : 'var(--fade)' }));
-    m.forEach(xs => xs.sort((a, b) => String(a.hora || '99').localeCompare(String(b.hora || '99'))));
+    m.forEach((xs, k) => { const f = xs.filter(x => passaFiltro(S, x, 'agenda')); if (f.length) m.set(k, f.sort((a, b) => String(a.hora || '99').localeCompare(String(b.hora || '99')))); else m.delete(k); });
     return m;
   }
   function calendarioMes(S) {
@@ -477,7 +506,7 @@ var SMT = (() => {
     }
     const doDia = porDia.get(sel) || [], dSel = deIso(sel);
     const total = [...porDia.entries()].filter(([k]) => k.startsWith(`${ano}-${String(mes).padStart(2, '0')}`)).reduce((a, [, xs]) => a + xs.length, 0);
-    return `<div class="card cal"><div class="calh"><h3 style="margin:0">${MESES[mes - 1]} ${ano}</h3><span class="small muted">${total} compromisso(s)</span>
+    return `<div class="card cal"><div class="calh"><h3 style="margin:0">${MESES[mes - 1]} ${ano}</h3><span class="small muted">${pl(total, 'compromisso')}</span>
         <div class="acts" style="margin-left:auto"><button class="btn sm" data-a="cal-mes" data-n="-1" title="Mês anterior">‹</button><button class="btn sm" data-a="cal-hoje">Hoje</button><button class="btn sm" data-a="cal-mes" data-n="1" title="Próximo mês">›</button></div></div>
       <div class="calg">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(x => `<div class="dsem">${x}</div>`).join('')}${cel}</div>
       <div class="leg"><span>🧪 laboratório</span><span>📝 prova/atividade do SIGAA</span><span>✓ minha tarefa</span></div>
@@ -489,7 +518,7 @@ var SMT = (() => {
 
   /* ---------------- AGENDA ---------------- */
   function vAgenda(S) {
-    const it = itensAgenda(S), hj = hoje();
+    const it = itensAgenda(S).filter(x => passaFiltro(S, x, 'agenda')), hj = hoje();
     const grupos = [['Atrasadas', i => i.tipo === 'tarefa' && !i.feito && i.d && diasAte(i.d) < 0], ['Hoje', i => i.d && diasAte(i.d) === 0], ['Amanhã', i => i.d && diasAte(i.d) === 1],
       ['Próximos 7 dias', i => i.d && diasAte(i.d) > 1 && diasAte(i.d) <= 7], ['Mais adiante', i => i.d && diasAte(i.d) > 7], ['Sem data', i => !i.d], ['Concluídas e passadas', i => i.d && diasAte(i.d) < 0 && !(i.tipo === 'tarefa' && !i.feito)]];
     const usado = new Set();
@@ -498,6 +527,7 @@ var SMT = (() => {
       <div style="text-align:right" class="small">${i.d ? `<b>${fmt(i.d)}</b> ${esc(i.hora || '')}<div class="fade">${quando(i.d)}</div>` : ''}${i.d && diasAte(i.d) >= 0 && !i.feito ? `<div style="margin-top:4px">${gbtn({ dia: i.d, ini: i.hora || '', fim: i.hora ? (i.tipo === 'aula' ? i.fim : umaHoraDepois(i.hora)) : '', titulo: i.tipo === 'sigaa' ? `${i.cat}: ${i.titulo}` : i.titulo, local: i.local || '', desc: i.turma ? titulo(i.turma) : '' })}</div>` : ''}</div>${i.tipo === 'tarefa' ? `<button class="del" data-a="del-tarefa" data-id="${esc(i.id)}" title="Excluir">${ic('x')}</button>` : ''}</div>`;
     const corpo = grupos.map(([nome, f]) => { const xs = it.filter(i => !usado.has(i) && f(i)); xs.forEach(i => usado.add(i)); return xs.length ? `<div class="grp">${nome}</div>${xs.map(linha).join('')}` : ''; }).join('');
     return `<h2>Agenda</h2><p class="sub">Provas, laboratórios e as suas próprias tarefas — no calendário e em lista.</p>
+      ${barraFiltros(S, 'agenda')}
       ${calendarioMes(S)}
       <div class="card"><h3>${ic('mais')} Nova tarefa</h3><div class="addf"><input id="nt-txt" placeholder="Ex.: estudar para P2 de Cálculo" maxlength="200"><input id="nt-data" type="date" value="${esc(S.novaData || isoDia(new Date(+hj + DIA_MS)))}"><select id="nt-turma"><option value="">(sem disciplina)</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${S.turmaTarefa === t.nome ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select><button class="btn pri" data-a="add-tarefa">Adicionar</button></div></div>
       <div class="acts" style="margin-bottom:14px"><button class="btn" data-a="ics-agenda">${ic('down')} Exportar agenda (.ics)</button></div>
@@ -567,6 +597,16 @@ var SMT = (() => {
       <button class="btn sm" data-v="sobre">Como atualizar</button><button class="ib" data-a="upd-depois" title="Lembrar depois">${ic('x')}</button></div>`;
   }
 
+  /** Convite discreto para conhecer o autor (aparece depois de algumas aberturas ou após atualizar). */
+  function conviteLinkedin(S) {
+    const A = N.AUTOR, nome = A.nome.split(' ')[0];
+    const txt = S.convite === 'atualizou'
+      ? `O SIGAA+ foi atualizado para a versão ${esc(S.versao)}. Ele é feito por ${esc(nome)}, estudante da UNIFEI.`
+      : `O SIGAA+ é gratuito e feito por ${esc(nome)}, estudante da UNIFEI. Se ele está ajudando, que tal se conectar?`;
+    return `<div class="card convite" data-id="convite"><h3>💙 Curtiu o SIGAA+?</h3><p class="small" style="margin:0 0 10px">${txt}</p>
+      <div class="acts"><button class="btn li" data-a="linkedin">${ic('link')} Conectar no LinkedIn</button><button class="btn sm" data-a="convite-depois">Agora não</button></div></div>`;
+  }
+
   /* ---------------- SOBRE ---------------- */
   function vSobre(S) {
     const A = N.AUTOR;
@@ -585,7 +625,8 @@ var SMT = (() => {
         <div class="card"><h3>${ic('sobre')} Autor</h3>
           <div class="row"><span class="logo" style="padding:0"><span class="m" style="width:46px;height:46px;font-size:16px;border-radius:12px">OZ</span></span>
           <div class="grow"><div class="b" style="font-size:16px">${esc(A.nome)}</div><div class="small muted">Criador e desenvolvedor do SIGAA+</div>
-          ${A.linkedin ? `<div class="acts" style="margin-top:10px"><a class="btn pri" href="${esc(A.linkedin)}" target="_blank" rel="noopener" style="text-decoration:none">${ic('link')} LinkedIn</a></div>` : ''}</div></div></div>
+          <p class="small" style="margin:8px 0 0">Estudante da UNIFEI. Fiz o SIGAA+ para deixar o dia a dia da faculdade mais simples. Sugestões são bem-vindas!</p>
+          ${A.linkedin ? `<div class="acts" style="margin-top:10px"><button class="btn li" data-a="linkedin">${ic('link')} Ver meu perfil no LinkedIn</button></div>` : ''}</div></div></div>
         <div class="card"><h3>${ic('refresh')} Atualizações</h3>${blocoAtualizacao(S)}</div>
         <div class="card"><h3>${ic('info')} Privacidade</h3><p class="small" style="margin:0">Tudo roda no seu navegador, com o login que você já fez no SIGAA. A extensão não pede senha e não envia seus dados para nenhum servidor além do próprio SIGAA. Os botões "Google Agenda" só abrem o Google quando você clica. A checagem de versão nova só lê o número da versão no GitHub (dá para desligar em Ajustes).</p></div>
       </div><div>

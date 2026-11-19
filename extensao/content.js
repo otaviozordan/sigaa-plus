@@ -60,7 +60,7 @@
       <aside>
         <div class="logo"><span class="m" style="font-size:13px">S+</span><div>SIGAA+<small>painel do estudante</small></div></div>
         ${T.VIEWS.map(([k, l], i) => ({ faltas: '<div class="sec">Acompanhamento</div>', funcoes: '<div class="sec">Mais</div>' }[k] || '') + `<button class="nv" data-v="${k}" title="${esc(l)}${i < 9 ? ` (tecla ${i + 1})` : ''}">${T.ic(k)}<span>${esc(l)}</span>${k === 'inicio' ? '<span class="bdg" hidden></span>' : i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('')}
-        <a class="foot" href="#" data-v="sobre">por ${esc(N.AUTOR.nome)}</a>
+        <div class="foot">Feito por <a href="#" data-a="linkedin" title="Ver perfil no LinkedIn">${esc(N.AUTOR.nome)}</a> · <a href="#" data-v="sobre">Sobre</a></div>
       </aside>
       <div class="main">
         <div class="top"><h1></h1>
@@ -83,6 +83,14 @@
     badge(0);
     renderUpd();
     if (!S.upd) checarUpd(false);
+
+    // convite para o LinkedIn: depois da 3ª abertura ou logo após uma atualização; some ao clicar ou por 30 dias em "Agora não"
+    S.cfg.aberturas = (S.cfg.aberturas || 0) + 1;
+    const atualizou = S.cfg.ultimaVersao && S.versao && N.versaoMaior(S.versao, S.cfg.ultimaVersao);
+    if (S.versao) S.cfg.ultimaVersao = S.versao;
+    if (!S.cfg.linkedinVisto && N.AUTOR.linkedin && !(S.cfg.conviteAdiado > Date.now()))
+      S.convite = atualizou ? 'atualizou' : S.cfg.aberturas >= 3 ? 'uso' : false;
+    salvarCfg();
 
     const cache = await store.get('ultimo');
     if (cache && cache.dados) {
@@ -244,7 +252,7 @@
   function toast(msg) {
     if (!root) return;
     const app = $('.app'); const t = document.createElement('div');
-    t.className = 'toast'; t.textContent = msg; app.appendChild(t);
+    t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); t.textContent = msg; app.appendChild(t);
     setTimeout(() => t.remove(), 3200);
   }
 
@@ -278,6 +286,12 @@
           const [y, m] = (S.mesCal || N.isoDia(N.hoje()).slice(0, 7)).split('-').map(Number);
           const d2 = new Date(y, m - 1 + +el.dataset.n, 1); S.mesCal = N.isoDia(d2).slice(0, 7); S.diaCal = N.isoDia(d2); ir('agenda', true); break;
         }
+        case 'f-tipo': {
+          const f = filtroTela(el.dataset.tela);
+          f.ocultos = f.ocultos.includes(el.dataset.t) ? f.ocultos.filter(x => x !== el.dataset.t) : [...f.ocultos, el.dataset.t];
+          salvarPessoal(); ir(el.dataset.tela, true); break;
+        }
+        case 'f-limpar': filtroTela(el.dataset.tela); S.pessoal.filtros[el.dataset.tela] = {}; salvarPessoal(); ir(el.dataset.tela, true); break;
         case 'cal-hoje': S.mesCal = ''; S.diaCal = ''; ir('agenda', true); break;
         case 'cal-dia': S.diaCal = el.dataset.d; S.mesCal = el.dataset.d.slice(0, 7); ir('agenda', true); break;
         case 'cal-nova': S.novaData = el.dataset.d; ir('agenda', true); setTimeout(() => { const i = $('#nt-txt'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }, 0); break;
@@ -301,6 +315,12 @@
           S.turmaTarefa = $('#nt-turma').value; salvarPessoal(); ir('agenda', true); toast('Tarefa adicionada.'); break;
         }
         case 'checar-upd': toast('Verificando no GitHub…'); await checarUpd(true); if (S.view === 'sobre') ir('sobre', true); toast(S.upd.nova ? 'Versão ' + S.upd.remota + ' disponível!' : S.upd.erro ? 'Não consegui verificar: ' + S.upd.erro : 'Você já está na versão mais recente.'); break;
+        case 'linkedin':
+          window.open(N.AUTOR.linkedin, '_blank', 'noopener');
+          S.cfg.linkedinVisto = true; salvarCfg();
+          if (S.convite) { S.convite = false; if (S.view === 'inicio') ir('inicio', true); }
+          break;
+        case 'convite-depois': S.cfg.conviteAdiado = Date.now() + 30 * N.DIA_MS; S.convite = false; salvarCfg(); if (S.view === 'inicio') ir('inicio', true); break;
         case 'upd-depois': S.cfg.updIgnorada = S.upd && S.upd.remota; salvarCfg(); renderUpd(); break;
         case 'ordem-reset': S.pessoal.ordem = {}; salvarPessoal(); toast('Organização original restaurada.'); break;
         case 'del-tarefa': S.pessoal.tarefas = S.pessoal.tarefas.filter(t => t.id !== el.dataset.id); salvarPessoal(); ir('agenda', true); break;
@@ -320,6 +340,11 @@
     } catch (err) { console.error(err); toast('Erro: ' + err.message); }
   }
 
+  /** Filtros da tela (agenda, semanas), criados sob demanda em S.pessoal.filtros. */
+  function filtroTela(tela) {
+    S.pessoal.filtros = S.pessoal.filtros || {};
+    return (S.pessoal.filtros[tela] = { ocultos: [], turma: '', semFeitas: false, ...(S.pessoal.filtros[tela] || {}) });
+  }
   /** Dispara uma ação data-a sem precisar de um botão na tela. */
   function acionar(a) { const b = document.createElement('button'); b.dataset.a = a; return onClick({ target: b, preventDefault() { } }); }
 
@@ -339,6 +364,11 @@
       S.cfg.mediaAprov = v; salvarCfg();
       S.dados.turmas.forEach((_, i) => { const r = $('#sr' + i); if (r) r.innerHTML = T.resultadoSim(S, i); });
     } else if (k === 'pal') filtrarPaleta(el.value);
+    else if (k === 'f-turma' || k === 'f-feitas') {
+      const f = filtroTela(el.dataset.tela);
+      if (k === 'f-turma') f.turma = el.value; else f.semFeitas = el.checked;
+      salvarPessoal(); ir(el.dataset.tela, true);
+    }
   }
 
   async function onChange(e) {

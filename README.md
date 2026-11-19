@@ -28,10 +28,10 @@ Suas tarefas, anotações e ajustes continuam salvos.
 |---|---|
 | **Início** | aulas de hoje (destaca a de agora), próximas provas, alertas de falta/nota, novidades da semana, IRA e % do curso |
 | **Turmas** | notas por avaliação e método do professor, faltas, anotações pessoais, abrir turma virtual, adicionar ao Google Agenda |
-| **Agenda** | provas do SIGAA + aulas práticas + suas tarefas, com botão "Google Agenda" em cada item |
+| **Agenda** | calendário mensal navegável + lista com provas, laboratórios e suas tarefas, filtros por tipo e turma, botão "Google Agenda" em cada item e "salvar todos os labs" |
 | **Horário** | grade com os horários da UNIFEI, aula atual em destaque, laboratórios por data, exportação `.ics` |
 | **Faltas** | quanto ainda pode faltar (em aulas e em dias), % de presença, mapa aula por aula |
-| **Notas** | todos os semestres, filtro, "novo" em notas recém-lançadas, exportar CSV |
+| **Notas** | notas de cada turma avaliação por avaliação (pesos e nota da unidade) + histórico dos semestres anteriores |
 | **Simulador** | quanto precisa tirar, usando os pesos de cada avaliação |
 | **Desempenho** | gráfico da média por semestre, aprovações e melhores notas |
 | **Funções do SIGAA** | busca em todo o menu do SIGAA, com favoritos |
