@@ -374,12 +374,11 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .fx2-lista .fx2-m b{font-size:34px}
 .fx2-lista .fx2[open]{grid-column:auto}
 @media (max-width:820px){.fx2-lista .fx2>summary{grid-template-columns:minmax(0,1fr) auto 14px;row-gap:10px}.fx2-lista .fx2-v{grid-column:1/-1;grid-row:2}}
-/* vidas: cheio = ainda pode faltar; vazio = já usada */
-.vidas i{background:var(--ok);box-shadow:none}
-.vidas.warn i{background:var(--warn)}
-.vidas i.u,.vidas.warn i.u{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--fade) 60%,transparent)}
-.vidas.bad i,.vidas.bad i.u{background:var(--bad);box-shadow:none;opacity:.9}
-.vidas i{height:13px}
+/* vidas: escuro = falta já usada; cinza claro = ainda pode faltar */
+.vidas i,.vidas.warn i{height:13px;background:var(--bg2);box-shadow:inset 0 0 0 1px var(--bd2);opacity:1}
+.vidas i.u{background:color-mix(in srgb,var(--tx) 78%,transparent);box-shadow:none}
+.vidas.warn i.u{background:var(--warn);box-shadow:none}
+.vidas.bad i,.vidas.bad i.u{background:var(--bad);box-shadow:none}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

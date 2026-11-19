@@ -272,7 +272,7 @@ var SMT = (() => {
     if (!r.limite) return '';
     const por = Math.max(1, Math.ceil(r.limite / 32)), n = Math.ceil(r.limite / por), usados = Math.min(n, Math.ceil((r.faltas || 0) / por));
     const cls = r.nivel === 'bad' ? 'bad' : r.nivel === 'warn' ? 'warn' : 'ok';
-    return `<span class="vidas ${cls}" title="${Math.max(0, r.limite - r.faltas)} de ${r.limite} faltas ainda disponíveis${por > 1 ? ` (cada bloco = ${por} aulas)` : ''}">${Array.from({ length: n }, (_, k) => `<i class="${k < usados ? 'u' : ''}"></i>`).join('')}</span>`;
+    return `<span class="vidas ${cls}" title="${r.faltas} de ${r.limite} faltas usadas${por > 1 ? ` (cada bloco = ${por} aulas)` : ''}">${Array.from({ length: n }, (_, k) => `<i class="${k < usados ? 'u' : ''}"></i>`).join('')}</span>`;
   }
   /** Anel de porcentagem (presença). */
   function anelPct(pct, cls) {
@@ -319,7 +319,7 @@ var SMT = (() => {
         </summary>
         <div class="fx2-det">${pct != null ? anelPct(pct, cls) : ''}<div class="fx-txt small">${frases.map(x => `<div>${x}</div>`).join('') || `<div class="muted">${esc(t.freqErro || 'Sem registros de frequência ainda.')}</div>`}${grade}</div></div></details>`;
     };
-    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Da disciplina com menos folga para a com mais. Bloquinho <b>cheio</b> = falta que você ainda pode usar · <b>vazio</b> = já usada. Toque numa disciplina para ver dia a dia.</p>
+    return `<h2>Faltas ${esc(dados.periodo)}</h2><p class="sub">Da disciplina com menos folga para a com mais. Bloquinho <b>preenchido</b> = falta já usada · <b>vazio</b> = falta que você ainda pode usar. Toque numa disciplina para ver dia a dia.</p>
       <div class="fx-top">
         <div><b>${total}</b><span>${total === 1 ? 'aula perdida' : 'aulas perdidas'}${totalDias ? `<br>em ${pl(totalDias, 'dia')}` : ''}</span></div>
         ${regs ? `<div><b>${Math.round(100 * pres / regs)}%</b><span>de presença<br>no semestre</span></div>` : ''}
