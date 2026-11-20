@@ -438,6 +438,10 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .cor-t:hover{background:var(--bg)}
 .cor-t input[type=color]{width:30px;height:30px;padding:0;border:0;border-radius:8px;background:none;cursor:pointer;flex:none}
 .cor-t span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cor-mini{flex:none;width:18px;height:18px;border-radius:50%;overflow:hidden;cursor:pointer;box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--bd2);position:relative}
+.cor-mini input{position:absolute;inset:-6px;width:30px;height:30px;padding:0;border:0;cursor:pointer}
+.cor-mini:hover{box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--ac)}
+.personalizar .cores{margin-top:2px}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}

@@ -119,6 +119,7 @@ var SMT = (() => {
     return `<div class="card personalizar"><h3>${ic('ajustes')} Personalizar o Início <span class="r small muted">${n} de ${BLOCOS_INICIO.length} visíveis</span></h3>
       <p class="small muted" style="margin:0 0 10px">Escolha o que aparece. Para mudar a ordem, arraste os cartões pela alça <b>⠿</b>.</p>
       <div class="blocos">${BLOCOS_INICIO.map(([k, l]) => `<label class="bloco"><input type="checkbox" data-in="ini-bloco" data-k="${k}" ${ocultos.has(k) ? '' : 'checked'}> ${esc(l)}</label>`).join('')}</div>
+      <div class="sec-t">Cores das matérias <button class="btn sm" data-a="cores-padrao" style="margin-left:8px;text-transform:none;letter-spacing:0">Cores padrão</button></div>${coresMaterias(S)}
       <div class="acts" style="margin-top:12px"><button class="btn sm pri" data-a="ini-personalizar">Pronto</button><button class="btn sm" data-a="ini-tudo">Mostrar tudo</button><button class="btn sm" data-a="ordem-reset">Ordem original</button></div></div>`;
   }
   function vInicio(S) {
@@ -228,7 +229,7 @@ var SMT = (() => {
       const fTxt = r.restam == null ? '' : r.restam >= 0 ? `pode faltar +${r.restam}` : `passou ${-r.restam} do limite`;
       const sem = N.eventosSemanais(t, S.modelo, S.cfg), labs = N.labsParaGoogle(t, S.cfg);
       return `<div class="card tc" id="t${i}" data-id="${esc(chaveT(t))}" style="border-top:4px solid ${t.cor}">
-        <h3 style="margin-bottom:2px">${esc(titulo(t.nome))}</h3>
+        <h3 style="margin-bottom:2px"><label class="cor-mini" title="Mudar a cor desta matéria"><input type="color" data-cor="${esc(chaveT(t))}" value="${esc(corValida(t.cor))}" aria-label="Cor de ${esc(titulo(t.nome))}"></label>${esc(titulo(t.nome))}</h3>
         <div class="small muted">${[t.codigo, t.local].filter(Boolean).map(esc).join(' · ')}</div>
         ${horarioCurto(S, t) ? `<div class="small" style="margin-top:6px">${ic('horario')} ${esc(horarioCurto(S, t))}</div>` : ''}
         <div class="kpis">
@@ -745,6 +746,9 @@ var SMT = (() => {
   }
 
   /* ---------------- AJUSTES ---------------- */
+  /** Seletores de cor de cada matéria (Ajustes e Personalizar do Início). */
+  const corValida = c => /^#[0-9a-f]{6}$/i.test(c || '') ? c : '#4f7cff';
+  const coresMaterias = S => `<div class="cores">${S.dados.turmas.map(t => `<label class="cor-t"><input type="color" data-cor="${esc(chaveT(t))}" value="${esc(corValida(t.cor))}" aria-label="Cor de ${esc(titulo(t.nome))}"><span>${esc(titulo(t.nome))}</span></label>`).join('') || vazio('Nenhuma turma.')}</div>`;
   const ACENTOS = [['azul', '#2457d6'], ['roxo', '#7c5cff'], ['verde', '#16a34a'], ['laranja', '#ea7a1a'], ['rosa', '#db2777'], ['ciano', '#0891b2']];
   function cartaoPersonalizacao(S) {
     const c = S.cfg, sel = (v, x) => v === x ? 'selected' : '';
@@ -766,7 +770,7 @@ var SMT = (() => {
             <label class="f">Ao abrir o painel<select data-cfg="telaInicial"><option value="" ${sel(c.telaInicial || '', '')}>Continuar de onde parei</option>${[['inicio', 'Início'], ['notas', 'Notas'], ['faltas', 'Faltas'], ['agenda', 'Agenda'], ['horario', 'Horário'], ['turmas', 'Turmas']].map(([k, l]) => `<option value="${k}" ${sel(c.telaInicial, k)}>${l}</option>`).join('')}</select></label>
           </div></div>
         <div><div class="sec-t" style="margin-top:0">Cor de cada matéria <button class="btn sm" data-a="cores-padrao" style="margin-left:8px;text-transform:none;letter-spacing:0">Cores padrão</button></div>
-          <div class="cores">${S.dados.turmas.map(t => `<label class="cor-t"><input type="color" data-cor="${esc(chaveT(t))}" value="${esc(/^#[0-9a-f]{6}$/i.test(t.cor) ? t.cor : '#4f7cff')}" aria-label="Cor de ${esc(titulo(t.nome))}"><span>${esc(titulo(t.nome))}</span></label>`).join('') || vazio('Nenhuma turma.')}</div></div>
+          ${coresMaterias(S)}</div>
       </div></div>`;
   }
   function vAjustes(S) {

@@ -412,7 +412,7 @@
       if (k === 'inicio' || k === 'fim') { await prepararModelo(false); ir('ajustes', true); }
       toast('Ajuste salvo.');
     } else if (el.dataset.cor) {
-      S.pessoal.cores = { ...(S.pessoal.cores || {}), [el.dataset.cor]: el.value }; salvarPessoal(); aplicarCores(); toast('Cor salva.');
+      S.pessoal.cores = { ...(S.pessoal.cores || {}), [el.dataset.cor]: el.value }; salvarPessoal(); aplicarCores(); toast('Cor salva.'); ir(S.view, true);
     } else if (el.dataset.hora) {
       if (!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(el.value.trim())) { toast('Use o formato HH:MM-HH:MM'); return; }
       S.cfg.horas = { ...(S.cfg.horas || N.HORAS_PADRAO), [el.dataset.hora]: el.value.trim() }; salvarCfg(); toast('Horário salvo.');
