@@ -361,20 +361,41 @@ var SMT = (() => {
     const agora = semanaDe(hoje());
     for (let n = 1; n <= agora; n++) pega(n);
     const nums = [...sem.keys()].filter(n => n > 0).sort((a, b) => b - a);
-    const semData = n => { const a = new Date(+ini + (n - 1) * 7 * DIA_MS); return `${fmt(a)} – ${fmt(new Date(+a + 6 * DIA_MS))}`; };
+    const iniDe = n => new Date(+ini + (n - 1) * 7 * DIA_MS);
+    const semData = n => { const a = iniDe(n); return `${fmt(a)} – ${fmt(new Date(+a + 6 * DIA_MS))}`; };
     const baseline = Object.values(hist.notas || {}).some(h => !h.visto);
-    let h = `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA+ anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p>${barraFiltros(S, 'semanas')}<div class="card">`;
-    h += nums.map(n => {
-      const w = sem.get(n);
-      const totF = w.faltas.reduce((a, x) => a + x.r.faltas, 0);
-      const itens = [];
-      w.notas.forEach(x => itens.push(`<div class="it"><span class="chip ok">nota</span> <b style="color:${corDe(S, x.cod)}">●</b> ${esc(nomeDeCodigo(S, dados.periodo, x.cod))} — ${esc(curto(x.campo))}: <b>${esc(x.v)}</b>${x.antes ? ` <span class="muted">(antes ${esc(x.antes)})</span>` : ''} <span class="fade small">lançada ${fmt(deIso(x.visto))}</span></div>`));
-      w.faltas.sort((a, b) => parseData(a.r.data) - parseData(b.r.data)).forEach(x => itens.push(`<div class="it"><span class="chip bad">${x.r.faltas} falta${x.r.faltas > 1 ? 's' : ''}</span> <b style="color:${x.t.cor}">●</b> ${esc(titulo(x.t.nome))} <span class="fade small">aula de ${esc(x.r.data.slice(0, 5))}${x.visto ? ` · lançada ${fmt(deIso(x.visto))}` : ''}</span></div>`));
-      w.ativ.forEach(a => itens.push(`<div class="it">${chipTipo(a)} ${a.feito ? '<s>' : ''}${esc(a.titulo)}${a.feito ? '</s>' : ''} <span class="fade small">${a.turma ? esc(titulo(a.turma)) + ' · ' : ''}${fmt(a.d)} ${esc(a.hora || '')}</span></div>`));
-      const resumo = [totF ? `<span class="chip bad">${pl(totF, 'falta')}</span>` : (w.aulas - w.nr > 0 ? '<span class="chip ok">sem faltas</span>' : ''), w.nr ? `<span class="chip gray">${pl(w.nr, 'aula')} sem registro</span>` : ''].join('');
-      return `<div class="wk ${n === agora ? 'cur' : ''}"><h3>Semana ${n} <span class="fade small" style="font-weight:400">${semData(n)}${n === agora ? ' · esta semana' : n > agora ? ' · futura' : ''}</span> ${resumo}</h3>${itens.join('') || (resumo ? '' : '<div class="fade small">Nada nesta semana.</div>')}</div>`;
+    const info = n => { const w = sem.get(n); const totF = w.faltas.reduce((a, x) => a + x.r.faltas, 0); return { w, totF, provas: w.ativ.filter(a => a.tipo === 'prova').length, vazia: !totF && !w.notas.length && !w.ativ.length }; };
+
+    // faixa do semestre: um quadradinho por semana
+    const maxN = Math.max(agora, ...nums);
+    const faixa = Array.from({ length: maxN }, (_, k) => k + 1).map(n => {
+      const x = sem.has(n) ? info(n) : null, f = x ? x.totF : 0;
+      const cls = ['sw', n === agora ? 'cur' : '', n > agora ? 'fut' : '', f >= 4 ? 'f2' : f ? 'f1' : x && !x.vazia ? 'ev' : ''].join(' ');
+      const tip = `Semana ${n} (${semData(n)})${x ? `: ${f ? pl(f, 'falta') : 'sem faltas'}${x.w.notas.length ? ` · ${pl(x.w.notas.length, 'nota')}` : ''}${x.provas ? ` · ${pl(x.provas, 'prova')}` : ''}` : ''}`;
+      return `<button class="${cls}" data-a="ir-semana" data-n="${n}" title="${esc(tip)}"><span>${n}</span>${x && x.w.notas.length ? '<i class="sw-n">★</i>' : ''}${x && x.provas ? '<i class="sw-p"></i>' : ''}</button>`;
     }).join('');
-    return h + '</div>';
+
+    // cartões; semanas vazias seguidas viram uma linha só
+    const blocos = []; let vazias = [];
+    const fechaVazias = () => { if (vazias.length) { const a = vazias[vazias.length - 1], b = vazias[0]; blocos.push(`<div class="wk2-vaz" id="sem-${b}">${a === b ? `Semana ${a}` : `Semanas ${a}–${b}`} · ${a === b ? semData(a) : `${semData(a).split(' – ')[0]} – ${semData(b).split(' – ')[1]}`} · <span class="ok-t">sem faltas</span>, nada lançado${vazias.filter(n => n !== b).map(n => `<span id="sem-${n}"></span>`).join('')}</div>`); vazias = []; } };
+    nums.forEach(n => {
+      const { w, totF, vazia } = info(n);
+      if (vazia && n < agora) { vazias.push(n); return; }
+      fechaVazias();
+      const itens = [];
+      w.notas.forEach(x => itens.push(`<div class="wi"><span class="wi-i nota">★</span><span class="dot" style="background:${corDe(S, x.cod)};margin:0"></span><div class="grow"><b>${esc(nomeDeCodigo(S, dados.periodo, x.cod))}</b> — ${esc(curto(x.campo))}: <b>${esc(x.v)}</b>${x.antes ? ` <span class="muted">(antes ${esc(x.antes)})</span>` : ''}</div><span class="small fade">lançada ${fmt(deIso(x.visto))}</span></div>`));
+      w.faltas.sort((a, b) => parseData(a.r.data) - parseData(b.r.data)).forEach(x => itens.push(`<div class="wi"><span class="wi-i falta">${x.r.faltas}</span><span class="dot" style="background:${x.t.cor};margin:0"></span><div class="grow"><b>${esc(titulo(x.t.nome))}</b> <span class="muted">— ${pl(x.r.faltas, 'falta')}</span></div><span class="small fade">${esc(N.DIAS[parseData(x.r.data).getDay() + 1] || '')} ${esc(x.r.data.slice(0, 5))}</span></div>`));
+      w.ativ.sort((a, b) => a.d - b.d).forEach(a => itens.push(`<div class="wi ${a.feito ? 'feito' : ''}"><span class="wi-i">${ICO[a.tipo] || '•'}</span><span class="dot" style="background:${a.cor};margin:0"></span><div class="grow"><b>${esc(a.tipo === 'aula' ? titulo(a.turma) : a.titulo)}</b> <span class="muted">— ${esc(ROT[a.tipo] || a.cat)}${a.tipo !== 'aula' && a.turma ? ' · ' + esc(titulo(a.turma)) : ''}</span></div><span class="small fade">${esc(N.DIAS[a.d.getDay() + 1] || '')} ${fmt(a.d)} ${esc(a.hora || '')}</span></div>`));
+      const chips = [totF ? `<span class="chip bad">${pl(totF, 'falta')}</span>` : (w.aulas - w.nr > 0 ? '<span class="chip ok">sem faltas</span>' : ''), w.notas.length ? `<span class="chip ok">★ ${pl(w.notas.length, 'nota')}</span>` : '', w.nr && n >= agora ? `<span class="chip gray">${pl(w.nr, 'aula')} por vir</span>` : ''].join('');
+      blocos.push(`<div class="wk2 ${n === agora ? 'cur' : n > agora ? 'fut' : ''}" id="sem-${n}">
+        <div class="wk2-n"><span>semana</span><b>${n}</b><small>${semData(n)}</small>${n === agora ? '<em>esta semana</em>' : ''}</div>
+        <div class="wk2-c"><div class="wk2-chips">${chips}</div>${itens.join('') || '<div class="small fade">Nada marcado nesta semana.</div>'}</div></div>`);
+    });
+    fechaVazias();
+    return `<h2>Semana a semana</h2><p class="sub">Faltas aparecem na semana da aula; notas, na semana em que foram lançadas${baseline ? ` (o SIGAA não informa essa data — o SIGAA+ anota quando vê cada nota pela primeira vez, desde ${fmt(deIso(hist.inicio))})` : ''}.</p>${barraFiltros(S, 'semanas')}
+      <div class="card"><h3>Seu semestre<span class="r small muted">toque numa semana para ir até ela</span></h3><div class="swf">${faixa}</div>
+        <div class="leg"><span><i style="background:var(--badb);border:1px solid var(--bad)"></i>teve falta</span><span><i style="background:var(--okb);border:1px solid var(--ok)"></i>teve nota/prova</span><span>★ nota lançada</span><span><i style="background:var(--ac);border-radius:50%"></i>prova</span></div></div>
+      <div class="wk2-lista">${blocos.join('')}</div>`;
   }
 
   /* ---------------- NOTAS ---------------- */
