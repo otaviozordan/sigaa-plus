@@ -102,6 +102,14 @@ var SMT = (() => {
   const umaHoraDepois = h => { const m = N.minutos(h); return m == null ? '' : `${String(Math.min(23, Math.floor(m / 60) + 1)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 
   /* ---------------- INÍCIO ---------------- */
+  /** Saudação conforme Ajustes: automática (bom dia/boa tarde/boa noite), "Olá", "E aí" ou frase própria com {nome}. */
+  function saudacao(S, nomeSigaa) {
+    const c = S.cfg, nome = (c.apelido || '').trim() || nomeSigaa || '', emoji = c.saudacaoEmoji ?? '👋';
+    const h = new Date().getHours(), periodo = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+    if (c.saudacao === 'custom' && (c.saudacaoTexto || '').trim()) return c.saudacaoTexto.replace(/\{nome\}/gi, nome).trim();
+    const base = { ola: 'Olá', eai: 'E aí' }[c.saudacao] || periodo;
+    return `${base}${nome ? ', ' + nome : ''}${c.saudacao === 'eai' ? '?' : '!'}${emoji ? ' ' + emoji : ''}`.replace('!?', '?');
+  }
   const BLOCOS_INICIO = [['saudacao', 'Saudação e data'], ['alertas', 'Alertas de faltas e notas'], ['hoje', 'Aulas de hoje'], ['prox', 'Próximas provas e atividades'],
     ['nov', 'Novidades da semana'], ['turmas', 'Resumo das turmas'], ['atual', 'Atualizações das turmas'], ['favs', 'Atalhos favoritos'], ['indices', 'Seus índices (IRA, MC…)']];
   /** Botão "Personalizar" e, quando aberto, os interruptores de cada bloco do Início. */
@@ -118,7 +126,7 @@ var SMT = (() => {
     const nome = p.nome ? titulo(p.nome).split(' ')[0] : '';
     const hj = hoje(), sem = modelo.semanaDe(hj);
     const ocultos = new Set(S.pessoal.inicioOcultos || []), vis = k => !ocultos.has(k);
-    let h = `<div class="hero"><h2>${nome ? 'Olá, ' + esc(nome) + ' 👋' : 'Olá! 👋'}</h2><p>${esc(N.dataLonga(hj))} · ${esc(dados.periodo || '')}${sem > 0 && sem < 30 ? ` · semana ${sem} do semestre` : ''}</p>
+    let h = `<div class="hero"><h2>${esc(saudacao(S, nome))}</h2><p>${esc(N.dataLonga(hj))} · ${esc(dados.periodo || '')}${sem > 0 && sem < 30 ? ` · semana ${sem} do semestre` : ''}</p>
       <div class="pills">${p.matricula ? `<span class="pill">Matrícula ${esc(p.matricula)}</span>` : ''}${(p.campos.find(c => /curso/i.test(c[0])) || [])[1] ? `<span class="pill">${esc(titulo(p.campos.find(c => /curso/i.test(c[0]))[1]))}</span>` : ''}</div></div>`;
 
     h = barraPersonalizar(S, ocultos) + (vis('saudacao') ? h : '');
@@ -737,9 +745,34 @@ var SMT = (() => {
   }
 
   /* ---------------- AJUSTES ---------------- */
+  const ACENTOS = [['azul', '#2457d6'], ['roxo', '#7c5cff'], ['verde', '#16a34a'], ['laranja', '#ea7a1a'], ['rosa', '#db2777'], ['ciano', '#0891b2']];
+  function cartaoPersonalizacao(S) {
+    const c = S.cfg, sel = (v, x) => v === x ? 'selected' : '';
+    const ex = saudacao(S, S.dados.perfil.nome ? titulo(S.dados.perfil.nome).split(' ')[0] : '');
+    return `<div class="card pers"><h3>${ic('ajustes')} Personalização</h3>
+      <div class="pers-g">
+        <div><div class="sec-t" style="margin-top:0">Saudação</div>
+          <div class="pers-ex">${esc(ex)}</div>
+          <div class="acts" style="margin-top:8px">
+            <label class="f">Como quer ser chamado<input data-cfg="apelido" maxlength="30" placeholder="(nome do SIGAA)" value="${esc(c.apelido || '')}" style="width:170px"></label>
+            <label class="f">Estilo<select data-cfg="saudacao"><option value="auto" ${sel(c.saudacao || 'auto', 'auto')}>Bom dia / Boa tarde / Boa noite</option><option value="ola" ${sel(c.saudacao, 'ola')}>Olá</option><option value="eai" ${sel(c.saudacao, 'eai')}>E aí</option><option value="custom" ${sel(c.saudacao, 'custom')}>Minha frase…</option></select></label>
+            <label class="f">Emoji<select data-cfg="saudacaoEmoji">${['👋', '😄', '🚀', '📚', '☕', '🔥', '✨', ''].map(e => `<option value="${e}" ${(c.saudacaoEmoji ?? '👋') === e ? 'selected' : ''}>${e || 'nenhum'}</option>`).join('')}</select></label>
+          </div>
+          ${c.saudacao === 'custom' ? `<label class="f" style="margin-top:8px">Sua frase (use {nome})<input data-cfg="saudacaoTexto" maxlength="80" placeholder="Bora estudar, {nome}! 💪" value="${esc(c.saudacaoTexto || '')}"></label>` : ''}
+          <div class="sec-t">Cor de destaque</div>
+          <div class="acentos">${ACENTOS.map(([k, cor]) => `<button class="acento ${(c.acento || 'azul') === k ? 'on' : ''}" data-a="acento" data-k="${k}" style="--x:${cor}" title="${k}" aria-label="Cor ${k}" aria-pressed="${(c.acento || 'azul') === k}"></button>`).join('')}</div>
+          <div class="acts" style="margin-top:12px">
+            <label class="f">Tamanho do texto<select data-cfg="fonte"><option value="compacta" ${sel(c.fonte, 'compacta')}>Compacto</option><option value="" ${sel(c.fonte || '', '')}>Normal</option><option value="grande" ${sel(c.fonte, 'grande')}>Grande</option></select></label>
+            <label class="f">Ao abrir o painel<select data-cfg="telaInicial"><option value="" ${sel(c.telaInicial || '', '')}>Continuar de onde parei</option>${[['inicio', 'Início'], ['notas', 'Notas'], ['faltas', 'Faltas'], ['agenda', 'Agenda'], ['horario', 'Horário'], ['turmas', 'Turmas']].map(([k, l]) => `<option value="${k}" ${sel(c.telaInicial, k)}>${l}</option>`).join('')}</select></label>
+          </div></div>
+        <div><div class="sec-t" style="margin-top:0">Cor de cada matéria <button class="btn sm" data-a="cores-padrao" style="margin-left:8px;text-transform:none;letter-spacing:0">Cores padrão</button></div>
+          <div class="cores">${S.dados.turmas.map(t => `<label class="cor-t"><input type="color" data-cor="${esc(chaveT(t))}" value="${esc(/^#[0-9a-f]{6}$/i.test(t.cor) ? t.cor : '#4f7cff')}" aria-label="Cor de ${esc(titulo(t.nome))}"><span>${esc(titulo(t.nome))}</span></label>`).join('') || vazio('Nenhuma turma.')}</div></div>
+      </div></div>`;
+  }
   function vAjustes(S) {
     const c = S.cfg, slots = Object.keys(N.HORAS_PADRAO);
     return `<h2>Ajustes</h2><p class="sub">Tudo fica salvo só neste navegador.</p>
+    ${cartaoPersonalizacao(S)}
     <div class="cols"><div>
       <div class="card"><h3>Aparência</h3><label class="f">Tema<select data-cfg="tema"><option value="auto" ${c.tema === 'auto' ? 'selected' : ''}>Automático (do sistema)</option><option value="claro" ${c.tema === 'claro' ? 'selected' : ''}>Claro</option><option value="escuro" ${c.tema === 'escuro' ? 'selected' : ''}>Escuro</option></select></label>
         <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" data-cfg="autoAbrir" ${c.autoAbrir ? 'checked' : ''}> Abrir o painel automaticamente ao entrar no Portal do Discente</label>

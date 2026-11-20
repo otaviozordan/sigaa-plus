@@ -57,7 +57,7 @@
     host.style.cssText = 'position:fixed;inset:0;z-index:2147483647';
     document.body.appendChild(host);
     root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = `<style>${SMCSS}</style><div class="app" data-tema="${esc(S.cfg.tema)}" tabindex="-1">
+    root.innerHTML = `<style>${SMCSS}</style><div class="app" data-tema="${esc(S.cfg.tema)}" data-acento="${esc(S.cfg.acento || 'azul')}" data-fonte="${esc(S.cfg.fonte || '')}" tabindex="-1">
       <aside>
         <div class="logo"><span class="m" style="font-size:13px">S+</span><div>SIGAA+<small>painel do estudante</small></div></div>
         ${T.VIEWS.map(([k, l], i) => ({ faltas: '<div class="sec">Acompanhamento</div>', funcoes: '<div class="sec">Mais</div>' }[k] || '') + `<button class="nv" data-v="${k}" title="${esc(l)}${i < 9 ? ` (tecla ${i + 1})` : ''}">${T.ic(k)}<span>${esc(l)}</span>${k === 'inicio' ? '<span class="bdg" hidden></span>' : i < 9 ? `<kbd>${i + 1}</kbd>` : ''}</button>`).join('')}
@@ -92,6 +92,7 @@
     S.convite = !!N.AUTOR.linkedin; // convite fixo no Início
     salvarCfg();
 
+    if (S.cfg.telaInicial && T.TELAS[S.cfg.telaInicial]) S.view = S.cfg.telaInicial;
     const cache = await store.get('ultimo');
     if (cache && cache.dados) {
       S.dados = cache.dados;
@@ -176,10 +177,16 @@
     });
   }
 
+  /** Cor de cada matéria: a escolhida em Ajustes ou a padrão. */
+  function aplicarCores() {
+    const cs = S.pessoal.cores || {};
+    S.dados.turmas.forEach((t, i) => { t.cor = cs[T.chaveT(t)] || N.CORES[i % N.CORES.length]; });
+  }
   async function prepararModelo(salvarHist) {
     const chave = 'hist:' + (S.dados.perfil.matricula || 'anon');
     let hist = await store.get(chave);
     if (salvarHist) { const r = N.atualizarHistorico(hist, S.dados); hist = r.hist; S.novas = r.novas; await store.set(chave, hist); }
+    aplicarCores();
     S.modelo = N.montarModelo(S.dados, hist || { inicio: N.isoDia(N.hoje()), notas: {}, faltas: {} }, S.cfg);
     marcarSync();
     const nov = T.novidades(S, 7).length, bd = $('.nv .bdg');
@@ -323,6 +330,8 @@
         case 'upd-depois': S.cfg.updIgnorada = S.upd && S.upd.remota; salvarCfg(); renderUpd(); break;
         case 'ini-personalizar': S.personalizando = !S.personalizando; ir('inicio', true); break;
         case 'ini-tudo': S.pessoal.inicioOcultos = []; salvarPessoal(); ir('inicio', true); break;
+        case 'acento': S.cfg.acento = el.dataset.k; salvarCfg(); $('.app').dataset.acento = el.dataset.k; ir('ajustes', true); break;
+        case 'cores-padrao': S.pessoal.cores = {}; salvarPessoal(); aplicarCores(); ir('ajustes', true); toast('Cores padrão restauradas.'); break;
         case 'ordem-reset': S.pessoal.ordem = {}; salvarPessoal(); toast('Organização original restaurada.'); if (S.view === 'inicio') ir('inicio', true); break;
         case 'del-tarefa': S.pessoal.tarefas = S.pessoal.tarefas.filter(t => t.id !== el.dataset.id); salvarPessoal(); ir('agenda', true); break;
         case 'horas-padrao': S.cfg.horas = { ...N.HORAS_PADRAO }; salvarCfg(); await prepararModelo(false); ir('ajustes', true); toast('Horários restaurados.'); break;
@@ -398,8 +407,12 @@
       if (k === 'mediaAprov' || k === 'unidadesPadrao') { v = N.num(v); if (v == null) return; }
       S.cfg[k] = v; salvarCfg();
       if (k === 'tema') $('.app').dataset.tema = v;
+      if (k === 'fonte') $('.app').dataset.fonte = v;
+      if (k === 'saudacao' || k === 'apelido' || k === 'saudacaoEmoji' || k === 'saudacaoTexto') ir('ajustes', true);
       if (k === 'inicio' || k === 'fim') { await prepararModelo(false); ir('ajustes', true); }
       toast('Ajuste salvo.');
+    } else if (el.dataset.cor) {
+      S.pessoal.cores = { ...(S.pessoal.cores || {}), [el.dataset.cor]: el.value }; salvarPessoal(); aplicarCores(); toast('Cor salva.');
     } else if (el.dataset.hora) {
       if (!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(el.value.trim())) { toast('Use o formato HH:MM-HH:MM'); return; }
       S.cfg.horas = { ...(S.cfg.horas || N.HORAS_PADRAO), [el.dataset.hora]: el.value.trim() }; salvarCfg(); toast('Horário salvo.');
