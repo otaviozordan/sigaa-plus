@@ -528,17 +528,67 @@ var SMT = (() => {
   }
 
   /* ---------------- DESEMPENHO ---------------- */
+  /** Semestre em andamento: média parcial, situação das disciplinas, presença. */
+  function semestreAtual(S) {
+    const ts = S.dados.turmas; if (!ts.length) return '';
+    const ns = ts.map(t => statusNota(S, t)), medias = ns.map(n => n.media).filter(x => x != null);
+    const conta = f => ns.filter(f).length;
+    const ok = conta(n => ['garantido', 'aprovado'].includes(n.estado)), precisa = conta(n => n.estado === 'possivel'), risco = conta(n => ['abaixo', 'impossivel'].includes(n.estado));
+    const pres = ts.reduce((a, t) => a + (t.freq?.presencas || 0), 0), regs = ts.reduce((a, t) => a + (t.freq?.aulasRegistradas || 0), 0), falt = ts.reduce((a, t) => a + (t.resumo?.faltas || 0), 0);
+    const cel = (v, k, cor) => `<div class="sa-c"><b${cor ? ` style="color:${cor}"` : ''}>${v}</b><span>${k}</span></div>`;
+    return `<div class="card"><h3>${ic('agenda')} Semestre atual · ${esc(S.dados.periodo)}</h3><div class="sa">
+      ${cel(medias.length ? f1(medias.reduce((a, b) => a + b, 0) / medias.length) : '—', 'média parcial')}
+      ${cel(ok, ok === 1 ? 'com média garantida' : 'com média garantida', 'var(--ok)')}
+      ${cel(precisa, 'ainda precisam de nota', precisa ? 'var(--warn)' : '')}
+      ${cel(risco, risco === 1 ? 'abaixo da média' : 'abaixo da média', risco ? 'var(--bad)' : '')}
+      ${regs ? cel(Math.round(100 * pres / regs) + '%', 'de presença') : ''}
+      ${cel(falt, falt === 1 ? 'aula perdida' : 'aulas perdidas')}</div></div>`;
+  }
+  /** Quantas disciplinas você fechou em cada faixa de nota. */
+  function distribuicao(d, S) {
+    const faixas = [['< 5', 0, 5], ['5–6', 5, 6], ['6–7', 6, 7], ['7–8', 7, 8], ['8–9', 8, 9], ['9–10', 9, 10.01]];
+    const qs = faixas.map(([, a, b]) => d.todas.filter(l => l.nota >= a && l.nota < b).length), max = Math.max(1, ...qs);
+    if (!d.todas.length) return '';
+    return `<div class="card"><h3>Distribuição das notas finais</h3><div class="hist">${faixas.map(([r, a], k) => `<div class="hist-c" title="${pl(qs[k], 'disciplina')} com nota ${r}"><span class="hist-n">${qs[k] || ''}</span><i style="height:${Math.round(100 * qs[k] / max)}%;background:${a < 5 ? 'var(--bad)' : a < S.cfg.mediaAprov ? 'var(--warn)' : 'var(--ok)'}"></i><span class="hist-r">${r}</span></div>`).join('')}</div>
+      <p class="small fade" style="margin:8px 0 0">${pl(d.todas.length, 'disciplina')} com nota final. A maior parte das suas notas está na faixa <b>${faixas[qs.indexOf(Math.max(...qs))][0]}</b>.</p></div>`;
+  }
+  /** Média por área (prefixo do código da disciplina: EME, EMA, IEM…). */
+  function porArea(d) {
+    const g = new Map();
+    d.todas.forEach(l => { const k = (/^[A-Za-z]+/.exec(l.cod || '') || [''])[0].toUpperCase(); if (!k) return; const x = g.get(k) || { s: 0, n: 0 }; x.s += l.nota; x.n++; g.set(k, x); });
+    const xs = [...g.entries()].map(([k, x]) => ({ k, m: x.s / x.n, n: x.n })).filter(x => x.n >= 1).sort((a, b) => b.m - a.m).slice(0, 10);
+    if (xs.length < 2) return '';
+    return `<div class="card"><h3>Desempenho por área</h3>${xs.map(x => `<div class="hb" title="${esc(x.k)}: média ${f2(x.m)} em ${pl(x.n, 'disciplina')}"><span class="nm">${esc(x.k)}</span><span class="tr"><i style="width:${x.m * 10}%;background:${x.m >= 7 ? 'var(--ok)' : x.m >= 6 ? 'var(--warn)' : 'var(--bad)'}"></i></span><span class="small" style="width:70px;text-align:right"><b>${f1(x.m)}</b> <span class="fade">(${x.n})</span></span></div>`).join('')}
+      <p class="small fade" style="margin:8px 0 0">Área = letras do código da disciplina (ex.: EME, EMA). Entre parênteses, quantas disciplinas.</p></div>`;
+  }
+  /** Total de faltas por semestre (relatório de notas). */
+  function faltasPorSemestre(d) {
+    const xs = d.sems.filter(s => s.faltas != null); if (xs.length < 2) return '';
+    const max = Math.max(1, ...xs.map(s => s.faltas));
+    return `<div class="card"><h3>Faltas por semestre</h3>${xs.map(s => `<div class="hb"><span class="nm">${esc(s.titulo)}</span><span class="tr"><i style="width:${100 * s.faltas / max}%;background:var(--ac)"></i></span><span class="small" style="width:70px;text-align:right"><b>${s.faltas}</b> <span class="fade">aulas</span></span></div>`).join('')}</div>`;
+  }
   function vDesempenho(S) {
     const d = N.desempenho(S.dados, sitClass), p = S.dados.perfil;
     if (!d.sems.length) return `<h2>Desempenho</h2><div class="card muted">${S.dados.parcial ? 'Carregando notas…' : 'Sem notas para analisar.'}</div>`;
     const pts = d.sems.filter(s => s.media != null);
     const tot = d.sems.reduce((a, s) => ({ ap: a.ap + s.aprov, rp: a.rp + s.reprov, an: a.an + s.andamento }), { ap: 0, rp: 0, an: 0 });
-    let h = `<h2>Desempenho</h2><p class="sub">Evolução das suas notas finais ao longo do curso.</p><div class="grid">
-      ${p.indices.filter(i => /^(IRA|MC|CR)$/i.test(i.k)).map(i => `<div class="stat"><div class="v">${esc(i.v)}</div><div class="k">${esc(i.t || i.k)}</div></div>`).join('')}
-      <div class="stat"><div class="v">${f2(d.mediaGeral)}</div><div class="k">média simples das notas finais</div></div>
-      <div class="stat"><div class="v">${tot.ap}</div><div class="k">disciplinas aprovadas</div></div>
-      <div class="stat"><div class="v">${tot.rp}</div><div class="k">reprovações/trancamentos</div></div>
+    const fechadas = d.todas.filter(l => ['s-ok', 's-bad'].includes(sitClass(l.sit)));
+    const taxa = tot.ap + tot.rp ? Math.round(100 * tot.ap / (tot.ap + tot.rp)) : null;
+    const fech = pts.filter(s => s.titulo !== S.dados.periodo);
+    const tend = fech.length >= 2 ? fech[fech.length - 1].media - fech[fech.length - 2].media : null;
+    const melhorSem = pts.length ? pts.reduce((a, s) => s.media > a.media ? s : a, pts[0]) : null;
+    const desvio = d.todas.length > 1 ? Math.sqrt(d.todas.reduce((a, l) => a + (l.nota - d.mediaGeral) ** 2, 0) / d.todas.length) : null;
+    const idx = p.indices.filter(i => /^(IRA|MC|CR)$/i.test(i.k)).map(i => `<div class="stat"><div class="v">${esc(isNaN(+i.v.replace(',', '.')) ? i.v : (+i.v.replace(',', '.')).toFixed(2).replace('.', ','))}</div><div class="k">${esc(i.t || i.k)}</div></div>`).join('');
+    let h = `<h2>Desempenho</h2><p class="sub">Como você está indo no curso, semestre a semestre.</p><div class="grid">
+      ${idx}
+      <div class="stat"><div class="v">${f2(d.mediaGeral)}</div><div class="k">média das notas finais</div></div>
+      ${taxa != null ? `<div class="stat"><div class="v" style="color:${taxa >= 90 ? 'var(--ok)' : taxa >= 70 ? 'var(--warn)' : 'var(--bad)'}">${taxa}%</div><div class="k">taxa de aprovação (${tot.ap} de ${tot.ap + tot.rp})</div></div>` : ''}
+      ${tend != null ? `<div class="stat"><div class="v" style="color:${tend >= 0 ? 'var(--ok)' : 'var(--bad)'}">${tend >= 0 ? '▲' : '▼'} ${f1(Math.abs(tend))}</div><div class="k">tendência: ${esc(fech[fech.length - 1].titulo)} vs ${esc(fech[fech.length - 2].titulo)}</div></div>` : ''}
+      ${melhorSem ? `<div class="stat"><div class="v">${esc(melhorSem.titulo)}</div><div class="k">melhor semestre (média ${f1(melhorSem.media)})</div></div>` : ''}
+      ${desvio != null ? `<div class="stat" title="Desvio padrão das notas finais: quanto menor, mais parecidas são suas notas"><div class="v">±${f1(desvio)}</div><div class="k">consistência (variação das notas)</div></div>` : ''}
+      ${p.pctInteg != null ? `<div class="stat"><div class="v">${p.pctInteg}%</div><div class="k">do curso concluído</div><div class="bar"><i style="width:${p.pctInteg}%;background:var(--ac)"></i></div></div>` : ''}
       <div class="stat"><div class="v">${d.sems.length}</div><div class="k">semestres cursados</div></div></div>`;
+    h += semestreAtual(S);
     // gráfico de linha (série única: sem legenda; título nomeia)
     if (pts.length >= 1) {
       const W = 640, H = 220, L = 30, R = 16, T = 18, B = 26, x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1)), y = v => T + (10 - v) * (H - T - B) / 10;
@@ -555,6 +605,8 @@ var SMT = (() => {
         ${[...new Set([melhor, ult])].map(s => { const i = pts.indexOf(s); return `<text class="lb" x="${x(i)}" y="${y(s.media) - 11}" text-anchor="middle">${f1(s.media)}</text>`; }).join('')}
       </svg><p class="small fade" style="margin:6px 0 0">Passe o mouse nos pontos para ver detalhes. Rótulos: melhor semestre e o mais recente.</p></div>`;
     }
+    h += `<div class="cols">${distribuicao(d, S)}${porArea(d)}</div>`;
+    h += faltasPorSemestre(d);
     // barras empilhadas de situação por semestre
     const maxN = Math.max(1, ...d.sems.map(s => s.aprov + s.reprov + s.andamento));
     h += `<div class="cols"><div class="card"><h3>Situação das disciplinas por semestre</h3>${d.sems.map(s => `<div class="hb" title="${esc(s.titulo)}: ${pl(s.aprov, 'aprovada')}, ${pl(s.reprov, 'reprovada')}, ${s.andamento} em andamento"><span class="nm">${esc(s.titulo)}</span><span class="tr">

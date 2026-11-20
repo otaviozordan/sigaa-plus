@@ -546,12 +546,13 @@ var SMN = (() => {
   function desempenho(dados, sitClass) {
     const sems = [...dados.notas].map(s => {
       const c = colunas(s.headers);
-      const linhas = s.linhas.map(l => ({ cod: c.cod >= 0 ? l[c.cod] : l[0], nome: c.disc >= 0 ? l[c.disc] : l[1], nota: c.res >= 0 ? num(l[c.res]) : null, sit: c.sit >= 0 ? l[c.sit] : '' }));
+      const linhas = s.linhas.map(l => ({ cod: c.cod >= 0 ? l[c.cod] : l[0], nome: c.disc >= 0 ? l[c.disc] : l[1], nota: c.res >= 0 ? num(l[c.res]) : null, sit: c.sit >= 0 ? l[c.sit] : '', faltas: c.fal >= 0 ? num(l[c.fal]) : null }));
       const ns = linhas.map(l => l.nota).filter(n => n != null);
       return {
         titulo: s.titulo, linhas, media: ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null,
         aprov: linhas.filter(l => sitClass(l.sit) === 's-ok').length, reprov: linhas.filter(l => sitClass(l.sit) === 's-bad').length,
         andamento: linhas.filter(l => sitClass(l.sit) === 's-inf').length,
+        faltas: linhas.some(l => l.faltas != null) ? linhas.reduce((a, l) => a + (l.faltas || 0), 0) : null,
       };
     });
     sems.sort((a, b) => a.titulo.localeCompare(b.titulo));

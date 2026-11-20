@@ -442,6 +442,16 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .cor-mini input{position:absolute;inset:-6px;width:30px;height:30px;padding:0;border:0;cursor:pointer}
 .cor-mini:hover{box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--ac)}
 .personalizar .cores{margin-top:2px}
+/* desempenho */
+.sa{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.sa-c{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;line-height:1.2}
+.sa-c b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}.sa-c span{font-size:12.5px;color:var(--mut)}
+.hist{display:flex;align-items:flex-end;gap:10px;height:160px;padding-top:6px}
+.hist-c{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.hist-c i{display:block;width:100%;max-width:56px;border-radius:6px 6px 2px 2px;min-height:2px}
+.hist-c i[style*="height:0%"]{min-height:0}
+.hist-n{font-size:12.5px;font-weight:700}.hist-r{font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.hb .nm{width:72px}
 /* filtros */
 .filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px}
 .filtros select{padding:5px 9px;font-size:13px}
