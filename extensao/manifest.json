@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SIGAA+ (UNIFEI)",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "Painel moderno para o SIGAA da UNIFEI: notas, simulador, faltas, horário, agenda, desempenho e exportação para Google Agenda. Tudo roda no seu navegador.",
   "icons": {
     "16": "icons/16.png",
