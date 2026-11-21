@@ -288,7 +288,7 @@
           S.pessoal.favs = [...f]; salvarPessoal(); $('#lista-func').innerHTML = T.listaFuncoes(S); break;
         }
         case 'csv': N.baixar(`notas-${d.perfil.matricula || 'sigaa'}.csv`, N.csvNotas(d), 'text/csv;charset=utf-8'); toast('Planilha baixada.'); break;
-        case 'ics-aulas': N.baixar(`aulas-${d.periodo || 'sigaa'}.ics`, N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg)), 'text/calendar'); toast('Arquivo .ics baixado — importe no Google Agenda (Configurações › Importar).'); break;
+        case 'ics-aulas': { const nome = `aulas-${d.periodo || 'sigaa'}.ics`; N.baixar(nome, N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg)), 'text/calendar'); window.open(N.LINKS.importarGoogle, '_blank', 'noopener'); toast(`No Google Agenda: "Selecionar arquivo do computador" → ${nome} → Importar.`); break; }
         case 'cal-mes': {
           const [y, m] = (S.mesCal || N.isoDia(N.hoje()).slice(0, 7)).split('-').map(Number);
           const d2 = new Date(y, m - 1 + +el.dataset.n, 1); S.mesCal = N.isoDia(d2).slice(0, 7); S.diaCal = N.isoDia(d2); ir('agenda', true); break;
@@ -314,7 +314,7 @@
           N.baixar(ts.length === 1 ? 'aulas-praticas-' + (ts[0].codigo || 'turma') + '.ics' : 'aulas-praticas.ics', N.gerarICS(N.eventosAulas(d, S.modelo, S.cfg, { soDatas: true, turmas: ts })), 'text/calendar');
           toast('Arquivo .ics baixado — abra-o ou importe no Google Agenda.'); break;
         }
-        case 'ics-agenda': N.baixar('agenda-sigaa.ics', N.gerarICS(N.eventosAgenda(d, S.pessoal)), 'text/calendar'); toast('Agenda exportada.'); break;
+        case 'ics-agenda': N.baixar('agenda-sigaa.ics', N.gerarICS(N.eventosAgenda(d, S.pessoal)), 'text/calendar'); window.open(N.LINKS.importarGoogle, '_blank', 'noopener'); toast('No Google Agenda: "Selecionar arquivo do computador" → agenda-sigaa.ics → Importar.'); break;
         case 'ir-semana': { const y = $('#sem-' + el.dataset.n), x = y && (y.closest('.wk2-vaz,.wk2') || y); if (x) { x.scrollIntoView({ block: 'center', behavior: 'smooth' }); x.classList.add('pisca'); setTimeout(() => x.classList.remove('pisca'), 1200); } break; }
         case 'ir-nota': { const x = [...root.querySelectorAll('main .stack > [data-id]')].find(y => y.dataset.id === el.dataset.id); if (x) { x.scrollIntoView({ block: 'start', behavior: 'smooth' }); x.classList.add('pisca'); setTimeout(() => x.classList.remove('pisca'), 1200); } break; }
         case 'tarefa-turma': S.turmaTarefa = d.turmas[+el.dataset.i].nome; ir('agenda'); setTimeout(() => { const i = $('#nt-txt'); i && i.focus(); }, 0); break;
@@ -457,9 +457,9 @@
       ...S.dados.turmas.map((t, i) => ({ ic: 'ext', label: 'Abrir turma virtual: ' + N.titulo(t.nome), tag: 'SIGAA', run: async () => { toast('Abrindo…'); await N.abrirTurmaNoSigaa(S.dados.turmas[i]); buscouNaRede = true; } })),
       { ic: 'refresh', label: 'Atualizar dados do SIGAA', tag: 'ação', run: () => atualizar(true) },
       { ic: 'lua', label: 'Alternar tema claro/escuro', tag: 'ação', run: () => acionar('tema') },
-      { ic: 'down', label: 'Exportar aulas para Google Agenda (.ics)', tag: 'ação', run: () => acionar('ics-aulas') },
-      { ic: 'down', label: 'Exportar aulas práticas (.ics)', tag: 'ação', run: () => acionar('ics-datas') },
-      { ic: 'down', label: 'Exportar agenda/provas (.ics)', tag: 'ação', run: () => acionar('ics-agenda') },
+      { ic: 'down', label: 'Salvar aulas no Google Agenda', tag: 'ação', run: () => acionar('ics-aulas') },
+      { ic: 'down', label: 'Salvar aulas práticas no Google Agenda', tag: 'ação', run: () => acionar('ics-datas') },
+      { ic: 'down', label: 'Salvar provas e tarefas no Google Agenda', tag: 'ação', run: () => acionar('ics-agenda') },
       { ic: 'down', label: 'Exportar notas (CSV)', tag: 'ação', run: () => acionar('csv') },
       { ic: 'down', label: 'Baixar backup dos meus dados', tag: 'ação', run: () => acionar('backup') },
       { ic: 'mais', label: 'Nova tarefa', tag: 'ação', run: () => { ir('agenda'); setTimeout(() => { const i = $('#nt-txt'); i && i.focus(); }, 0); } },

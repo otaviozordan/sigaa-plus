@@ -699,7 +699,7 @@ var SMT = (() => {
     g += '</div>';
     const labs = dados.turmas.filter(t => t.datas.length);
     return `<h2>Horário ${esc(dados.periodo)}</h2><p class="sub">Sua semana de aulas. Horários da UNIFEI — se algum mudar, ajuste em <a href="#" data-v="ajustes">Ajustes</a>.</p>
-      <div class="acts" style="margin-bottom:14px"><button class="btn pri" data-a="ics-aulas">${ic('down')} Exportar para Google Agenda / Outlook (.ics)</button></div>
+      <div class="acts" style="margin-bottom:14px"><button class="btn pri" data-a="ics-aulas" title="Baixa o arquivo com todas as aulas e abre o Google Agenda em Importar">${ic('agenda')} Salvar aulas no Google Agenda</button></div>
       <div class="card tw hcard">${g}</div>
       ${labs.length ? blocoDatas(S, labs, true) : ''}`;
   }
@@ -803,7 +803,7 @@ var SMT = (() => {
       ${barraFiltros(S, 'agenda')}
       ${calendarioMes(S)}
       <div class="card"><h3>${ic('mais')} Nova tarefa</h3><div class="addf"><input id="nt-txt" placeholder="Ex.: estudar para P2 de Cálculo" maxlength="200"><input id="nt-data" type="date" value="${esc(S.novaData || isoDia(new Date(+hj + DIA_MS)))}"><select id="nt-turma"><option value="">(sem disciplina)</option>${S.dados.turmas.map(t => `<option value="${esc(t.nome)}" ${S.turmaTarefa === t.nome ? 'selected' : ''}>${esc(titulo(t.nome))}</option>`).join('')}</select><button class="btn pri" data-a="add-tarefa">Adicionar</button></div></div>
-      <div class="card"><h3>${ic('agenda')} Próximos compromissos<button class="btn sm r" data-a="ics-agenda" title="Baixar tudo em .ics para Google Agenda ou Outlook">${ic('down')} Exportar (.ics)</button></h3>${corpo || vazio('Nenhuma atividade. Use o campo acima para criar a primeira tarefa.')}</div>`;
+      <div class="card"><h3>${ic('agenda')} Próximos compromissos<button class="btn sm pri r" data-a="ics-agenda" title="Baixa o arquivo com provas, atividades e tarefas e abre o Google Agenda em Importar">${ic('agenda')} Salvar no Google Agenda</button></h3>${corpo || vazio('Nenhuma atividade. Use o campo acima para criar a primeira tarefa.')}</div>`;
   }
 
   /* ---------------- FUNÇÕES ---------------- */

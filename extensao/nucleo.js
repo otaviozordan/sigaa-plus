@@ -477,8 +477,8 @@ var SMN = (() => {
       if (!ev.length) throw new Error('nenhuma aula em data específica encontrada');
       return ev;
     }
-    const { ini, fim } = modelo.lim;
-    if (!ini || !fim) throw new Error('não sei quando o semestre começa/termina — preencha em Ajustes');
+    // sem datas do semestre no SIGAA: de hoje até 18 semanas (ajustável em Ajustes › Semestre)
+    const ini = modelo.lim.ini || hoje(), fim = modelo.lim.fim || new Date(+ini + 18 * 7 * DIA_MS);
     for (const t of turmas) {
       for (const c of (t.fixos || t.horarios || [])) for (const b of blocos(c)) {
         const d = new Date(ini); while (d.getDay() + 1 !== b.dia) d.setDate(d.getDate() + 1);
