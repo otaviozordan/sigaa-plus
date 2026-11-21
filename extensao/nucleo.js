@@ -205,6 +205,37 @@ var SMN = (() => {
     if (!atual || !atual.jsf) throw new Error('turma não encontrada no portal');
     postNovaAba(p, atual.jsf.formId, atual.jsf.params);
   }
+  /* ---------------- turma virtual dentro do painel ---------------- */
+  /** Entra na turma virtual e devolve a página (com o menu da turma). */
+  async function entrarTurma(t) {
+    const p = await abrirPortal();
+    const lista = SM.parseTurmas(p.doc).lista;
+    const atual = lista.find(x => x.nome === t.nome && x.idTurma === t.idTurma) || lista.find(x => x.nome === t.nome);
+    if (!atual || !atual.jsf) throw new Error('turma não encontrada no portal');
+    const ava = await postForm(p, atual.jsf.formId, atual.jsf.params);
+    const e = SM.estadoPagina(ava.url, ava.doc);
+    if (e !== 'ok') throw Object.assign(new Error(e), { estado: e });
+    if (!ava.doc.getElementById('formMenu')) throw new Error('não consegui entrar na turma virtual');
+    return ava;
+  }
+  /** Clica num link JSF da página: devolve {page} (HTML) ou {arquivo: {blob, nome}} (download). */
+  async function navegarTurma(page, jsf) {
+    const { campos, action } = camposDoForm(page, jsf.formId, jsf.params);
+    const r = await fetch(action, { method: 'POST', credentials: 'include', body: new URLSearchParams(campos), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const tipo = r.headers.get('content-type') || '', disp = r.headers.get('content-disposition') || '';
+    if (/attachment/i.test(disp) || (tipo && !/text\/html|xml/i.test(tipo))) {
+      let nome = (/filename\*=UTF-8''([^;]+)/i.exec(disp) || [])[1]; if (nome) try { nome = decodeURIComponent(nome); } catch { }
+      nome = nome || ((/filename="?([^";]+)"?/i.exec(disp) || [])[1]) || 'arquivo';
+      return { arquivo: { blob: await r.blob(), nome } };
+    }
+    const buf = await r.arrayBuffer();
+    const cs = ((/charset=([^;]+)/i.exec(tipo) || [])[1] || 'iso-8859-1').trim();
+    let html; try { html = new TextDecoder(cs).decode(buf); } catch { html = new TextDecoder('iso-8859-1').decode(buf); }
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const e = SM.estadoPagina(r.url, doc);
+    if (e !== 'ok') throw Object.assign(new Error(e === 'login' ? 'sua sessão do SIGAA expirou, entre de novo' : e), { estado: e });
+    return { page: { url: r.url, html, doc } };
+  }
   async function abrirMenuNoSigaa(act) {
     if (!/#\{/.test(act)) { window.open(new URL(act, origem()).href, '_blank'); return; }
     const p = await abrirPortal();
@@ -562,7 +593,7 @@ var SMN = (() => {
 
   return {
     CORES, DIAS, DIA_MS, HORAS_PADRAO, HORAS_ANTIGAS, CFG_PADRAO, AUTOR, LINKS, versaoMaior, verificarAtualizacao, clean, esc, norm, busca, titulo, parseData, fmt, segunda, hoje, isoDia, deIso, atras, dataLonga,
-    diasAte, quando, num, f1, f2, minutos, store, portalUrl, fetchDoc, postForm, abrirPortal, coletar, abrirTurmaNoSigaa, abrirMenuNoSigaa,
+    diasAte, quando, num, f1, f2, minutos, store, portalUrl, fetchDoc, postForm, abrirPortal, coletar, abrirTurmaNoSigaa, abrirMenuNoSigaa, entrarTurma, navegarTurma, postNovaAba,
     ehCampoNota, atualizarHistorico, colunas, montarModelo, limitesSemestre, simular, planoAvaliacao, simularPlano, aulasEmDatas, labsParaGoogle, horaDo, blocos, textoHorario, aulasDoDia,
     gerarICS, linkGoogle, eventosSemanais, eventosAulas, eventosAgenda, csvNotas, baixar, desempenho,
   };

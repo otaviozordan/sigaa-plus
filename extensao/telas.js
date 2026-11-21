@@ -27,7 +27,7 @@ var SMT = (() => {
     ['inicio', 'Início'], ['turmas', 'Turmas'], ['agenda', 'Agenda'], ['horario', 'Horário'], ['faltas', 'Faltas'],
     ['notas', 'Notas'], ['desempenho', 'Desempenho'], ['semanas', 'Semanas'], ['funcoes', 'Funções do SIGAA'], ['ajustes', 'Ajustes'], ['sobre', 'Sobre'],
   ];
-  const nomeView = v => (VIEWS.find(x => x[0] === v) || [, ''])[1];
+  const nomeView = v => v === 'tv' ? 'Turma virtual' : (VIEWS.find(x => x[0] === v) || [, ''])[1];
 
   /* ---------------- auxiliares ---------------- */
   const corDe = (S, x) => (S.dados.turmas.find(t => norm(t.nome) === norm(x) || (t.codigo && t.codigo === x)) || {}).cor || 'var(--fade)';
@@ -176,7 +176,7 @@ var SMT = (() => {
       const notas = fsU.length ? fsU.map(u => `<span class="chip ${u.v == null ? 'gray' : u.v < S.cfg.mediaAprov ? 'bad' : ''}">${u.rot}: ${u.v != null ? f1(u.v) : 'falta lançar'}</span>`).join('') + (n.estado === 'possivel' ? `<span class="chip ${n.cls}">${esc(n.txt)}</span>` : '') : '';
       return `<div class="row"><span class="dot" style="background:${t.cor}"></span><div class="grow"><div class="b">${esc(titulo(t.nome))} <span class="fade small" style="font-weight:400">${esc(t.codigo)}</span></div><div class="muted small">${[t.local, horarioCurto(S, t)].filter(Boolean).map(esc).join(' · ')}</div>${chipFaltas(t.resumo)}${notas}</div></div>`;
     }).join('') || vazio('Nenhuma turma encontrada.')}</div>`;
-    if (vis('atual') && dados.atualizacoes.length) B.atual = `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => `<div class="row"><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`).join('')}</div>`;
+    if (vis('atual') && dados.atualizacoes.length) B.atual = `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => { const ti = dados.turmas.findIndex(t => norm(t.nome) === norm(a.turma)); return `<div class="row${ti >= 0 ? ' clk' : ''}"${ti >= 0 ? ` data-a="tv-abrir" data-i="${ti}" title="Abrir a turma virtual"` : ''}><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`; }).join('')}</div>`;
     const favs = (S.pessoal.favs || []).map(act => dados.menu.find(m => m.act === act)).filter(Boolean);
     if (vis('favs') && favs.length) B.favs = `<div class="card" data-id="favs"><h3>★ Atalhos favoritos</h3><div class="acts">${favs.map(m => `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}">${esc(m.label)} ${ic('ext')}</button>`).join('')}</div></div>`;
     // ordem padrão (o arrastar ⠿ continua podendo mudar): o que se usa todo dia primeiro
@@ -236,7 +236,7 @@ var SMT = (() => {
           ${kpiNotas(S, t, n)}
           <div class="kpi"><span class="k">Faltas</span><b class="v">${r.faltas != null ? r.faltas : '—'}${r.limite != null ? `<small>/${r.limite}</small>` : ''}</b><span class="s ${r.nivel === 'na' ? '' : r.nivel}">${esc(fTxt)}</span></div>
         </div>
-        <div class="acts"><button class="btn sm pri" data-a="turma" data-i="${i}">${ic('ext')} Abrir turma virtual</button></div>
+        <div class="acts"><button class="btn sm pri" data-a="tv-abrir" data-i="${i}">${ic('turmas')} Abrir turma virtual</button><button class="btn sm" data-a="turma" data-i="${i}" title="Abrir a turma no SIGAA, numa nova aba">${ic('ext')} No SIGAA</button></div>
         <details class="mais"><summary class="small b"><span class="arr">▶</span> Mais detalhes${anot ? ' · 📝' : ''}<span class="fade" style="font-weight:500">avaliações, agenda, anotações</span></summary>
           <div class="sec-t">Plano de avaliações</div>${corpoNotas(S, t)}
           ${sem.length || labs.length ? `<div class="sec-t">Google Agenda</div><div class="acts">${sem.map(e => gbtn(e, 'Toda ' + e.rotulo)).join('')}${labs.map(e => gbtn(e, e.qtd > 1 ? `As ${e.qtd} aulas práticas que faltam` : `Aula prática ${fmt(e.dia)} ${e.ini}`)).join('')}${labs.length > 1 ? `<button class="btn sm" data-a="gcal-todos" data-i="${i}">${ic('down')} Salvar todas (importar)</button>` : ''}</div>` : ''}
@@ -513,7 +513,7 @@ var SMT = (() => {
     return `<div class="card nt2" data-id="${esc(chaveT(t))}" style="--c:${t.cor}">
       <div class="nt2-h">
         <div class="nt2-t"><h3>${esc(titulo(t.nome))}</h3><div class="small muted">${meta} ${sit}</div>
-          <a href="#" class="small nt2-link" data-a="turma" data-i="${S.dados.turmas.indexOf(t)}">Abrir turma virtual ↗</a></div>
+          <a href="#" class="small nt2-link" data-a="tv-abrir" data-i="${S.dados.turmas.indexOf(t)}">Abrir turma virtual →</a></div>
         ${anel(n.media, S.cfg.mediaAprov, n.cls)}
       </div>
       <div class="nt2-msg ${mcls}">${ic(mcls === 'ok' ? 'notas' : mcls === 'bad' ? 'alerta' : 'info')}<span>${msg}</span></div>
@@ -933,7 +933,30 @@ var SMT = (() => {
       </div></div>`;
   }
 
-  const TELAS = { inicio: vInicio, turmas: vTurmas, semanas: vSemanas, faltas: vFaltas, notas: vNotas, desempenho: vDesempenho, horario: vHorario, agenda: vAgenda, funcoes: vFuncoes, ajustes: vAjustes, sobre: vSobre };
+  /** Turma virtual aberta dentro do painel: menu da turma à esquerda, página do SIGAA (limpa) à direita. */
+  function vTurmaVirtual(S) {
+    const tv = S.tv;
+    if (!tv) return vazio('Abra uma turma em Turmas › "Abrir turma virtual".');
+    const t = S.dados.turmas[tv.i] || {};
+    const icones = { principal: 'inicio', noticia: 'info', particip: 'turmas', frequ: 'faltas', nota: 'notas', tarefa: 'agenda', questionar: 'agenda', forum: 'link', material: 'down', arquivo: 'down', conteudo: 'down', aula: 'horario' };
+    const icDe = s => { const n = norm(s).toLowerCase(); const k = Object.keys(icones).find(k => n.includes(k)); return ic(k ? icones[k] : 'ext'); };
+    const menu = (tv.menu || []).map((g, gi) => `<div class="tvm-g">${g.g ? `<div class="tvm-t">${esc(g.g)}</div>` : ''}${g.itens.map((x, j) => `<button class="tvm-i ${tv.atual === `m${gi}.${j}` ? 'on' : ''}" data-a="tv-ir" data-k="m${gi}.${j}">${icDe(x.t)}<span>${esc(x.t)}</span></button>`).join('')}</div>`).join('');
+    const corpo = tv.erro
+      ? `<div class="card"><h3 class="err">Não consegui abrir esta página</h3><p>${esc(tv.erro)}</p><div class="acts"><button class="btn pri" data-a="tv-recarregar">${ic('refresh')} Tentar de novo</button><button class="btn" data-a="tv-sigaa">${ic('ext')} Abrir no SIGAA</button></div></div>`
+      : tv.carregando && !tv.html
+        ? `<div class="sk" style="height:38px;margin-bottom:12px"></div><div class="sk" style="height:220px"></div>`
+        : `<div class="card tv-c ${tv.carregando ? 'carr' : ''}">${tv.vazio ? '<p class="muted">Esta página veio sem conteúdo.</p>' : tv.html}</div>
+          <p class="small fade">Para enviar arquivos, responder questionários ou postar no fórum, use ${ic('ext')} <a href="#" data-a="tv-sigaa">Abrir no SIGAA</a>.</p>`;
+    return `<div class="tv-top card" style="border-left:5px solid ${t.cor || 'var(--ac)'}">
+        <button class="btn sm" data-a="${tv.hist && tv.hist.length ? 'tv-voltar' : 'tv-sair'}" title="Voltar">← ${tv.hist && tv.hist.length ? 'Voltar' : 'Turmas'}</button>
+        <div class="grow"><div class="b">${esc(titulo(t.nome || 'Turma virtual'))}</div><div class="small muted">${esc([t.codigo, t.local].filter(Boolean).join(' · ') || 'Turma virtual')}</div></div>
+        <button class="ib" data-a="tv-recarregar" title="Recarregar">${ic('refresh')}</button>
+        <button class="btn sm" data-a="tv-sigaa" title="Abrir esta página no SIGAA, numa nova aba">${ic('ext')} Abrir no SIGAA</button>
+      </div>
+      <div class="tv">${menu ? `<nav class="tvm" aria-label="Menu da turma">${menu}</nav>` : ''}<div class="tv-p">${corpo}</div></div>`;
+  }
+
+  const TELAS = { tv: vTurmaVirtual, inicio: vInicio, turmas: vTurmas, semanas: vSemanas, faltas: vFaltas, notas: vNotas, desempenho: vDesempenho, horario: vHorario, agenda: vAgenda, funcoes: vFuncoes, ajustes: vAjustes, sobre: vSobre };
 
   /** Esqueleto mostrado enquanto não há nenhum dado. */
   const esqueleto = (msg, p) => `<div class="load"><div class="msg b">${esc(msg)}</div><div class="pg"><i style="width:${Math.round((p || 0) * 100)}%"></i></div><div class="small">Na primeira vez leva uns segundos: o SIGAA só mostra a frequência entrando em cada turma.<br>Depois disso o painel abre na hora.</div></div>

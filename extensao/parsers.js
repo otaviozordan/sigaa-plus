@@ -258,6 +258,75 @@ var SM = (() => {
     return { avals, colunas, infos: enxuto, vazio: !avals.length && !colunas.length && !enxuto.length };
   }
 
+  /**
+   * Página da turma virtual -> {titulo, menu:[{g, itens:[{t, jsf}]}], html (limpo), acoes:[{t, jsf}]}.
+   * Links JSF viram data-a="tv-ir" data-k="c<n>"; links normais abrem em nova aba; nada de script.
+   */
+  function parseTurmaVirtual(doc, base) {
+    const abs = u => { try { const h = new URL(u, base).href; return /^https?:/i.test(h) ? h : ''; } catch { return ''; } };
+    const curtoTxt = el => clean(el.textContent);
+    // menu lateral (formMenu), agrupado pelos cabeçalhos das seções
+    const menu = [], form = doc.getElementById('formMenu');
+    if (form) {
+      const grupoDe = a => {
+        for (let el = a; el && el !== form; el = el.parentElement) {
+          for (let p = el.previousElementSibling; p; p = p.previousElementSibling) {
+            const t = curtoTxt(p);
+            if (!t || p.tagName === 'A' || p.querySelector('a')) continue; // outro link do mesmo grupo
+            if (t.length <= 40) return t;
+            break;
+          }
+        }
+        return '';
+      };
+      const vistos = new Set();
+      form.querySelectorAll('a[onclick]').forEach(a => {
+        const jsf = jsfParams(a.getAttribute('onclick')), t = curtoTxt(a);
+        if (!jsf || !t || vistos.has(t)) return;
+        vistos.add(t);
+        const g = grupoDe(a);
+        let grp = menu.find(x => x.g === g); if (!grp) menu.push(grp = { g, itens: [] });
+        grp.itens.push({ t, jsf });
+      });
+    }
+
+    // conteúdo: tira menu, cabeçalho, rodapé e tudo que é script
+    const body = doc.body.cloneNode(true);
+    const fm = body.querySelector('#formMenu');
+    if (fm) { let x = fm; while (x.parentElement && x.parentElement !== body && !clean(x.parentElement.textContent).replace(clean(x.textContent), '')) x = x.parentElement; x.remove(); }
+    body.querySelectorAll('script, style, link, noscript, iframe, object, embed, meta, #cabecalho, #painel-usuario, #info-sistema, #menu-dropdown, #rodape, #barra-governo, .ui-dialog, input[type=hidden]').forEach(e => e.remove());
+    const raiz = ['#conteudo', '#conteudoAva', '#ava-conteudo', '.conteudo', '#corpo', '#container'].map(s => body.querySelector(s)).find(e => e && clean(e.textContent).length > 20) || body;
+    const titulo = clean((raiz.querySelector('h2, h3, legend, .titulo, caption') || {}).textContent || '').slice(0, 120);
+
+    const acoes = [];
+    const acao = (el, onclick) => {
+      const jsf = jsfParams(onclick); if (!jsf) return false;
+      acoes.push({ t: clean(el.textContent || el.getAttribute('value') || el.getAttribute('title') || el.getAttribute('alt') || ''), jsf });
+      el.setAttribute('data-a', 'tv-ir'); el.setAttribute('data-k', 'c' + (acoes.length - 1));
+      return true;
+    };
+    [...raiz.querySelectorAll('*')].forEach(el => {
+      const tag = el.tagName.toLowerCase(), onclick = el.getAttribute('onclick') || '';
+      const jsfOk = onclick && acao(el, onclick);
+      for (const at of [...el.attributes]) if (!/^(href|src|alt|title|colspan|rowspan|data-a|data-k)$/.test(at.name)) el.removeAttribute(at.name);
+      if (tag === 'a') {
+        const h = el.getAttribute('href') || '';
+        if (jsfOk || !h || /^\s*(#|javascript:)/i.test(h) || !abs(h)) { el.setAttribute('href', '#'); if (!jsfOk) el.replaceWith(...el.childNodes); }
+        else { el.setAttribute('href', abs(h)); el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener'); }
+      } else if (tag === 'img') {
+        const s = abs(el.getAttribute('src') || ''); if (s) el.setAttribute('src', s); else el.remove();
+      } else if (/^(input|button)$/.test(tag)) {
+        if (jsfOk) { const b = doc.createElement('button'); b.className = 'btn sm'; b.textContent = acoes[acoes.length - 1].t || 'Abrir'; b.setAttribute('data-a', 'tv-ir'); b.setAttribute('data-k', el.getAttribute('data-k')); el.replaceWith(b); }
+        else el.remove();
+      } else if (/^(select|textarea|form)$/.test(tag)) {
+        if (tag === 'form') el.replaceWith(...el.childNodes); else el.remove();
+      }
+    });
+    // tira blocos que ficaram vazios
+    [...raiz.querySelectorAll('div, span, p, td, li')].reverse().forEach(e => { if (!clean(e.textContent) && !e.querySelector('img, button, a') && e.tagName !== 'TD') e.remove(); });
+    return { titulo, menu, html: raiz.innerHTML.trim(), acoes, vazio: !clean(raiz.textContent) };
+  }
+
   /** Página atual é login / aviso / vínculo? */
   function estadoPagina(url, doc) {
     if (/verTelaLogin|logar\.do|expirad|public\//i.test(url) || doc.querySelector('form[name=loginForm]')) return 'login';
@@ -266,6 +335,6 @@ var SM = (() => {
     return 'ok';
   }
 
-  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, partesTabela, parseNotasTurma };
+  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, partesTabela, parseNotasTurma, parseTurmaVirtual };
 })();
 if (typeof module !== 'undefined') module.exports = SM;

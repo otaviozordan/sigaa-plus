@@ -283,6 +283,16 @@
         case 'paleta': abrirPaleta(); break;
         case 'menu': fecharPaleta(); toast('Abrindo no SIGAA…'); await N.abrirMenuNoSigaa(el.dataset.act); buscouNaRede = true; break;
         case 'turma': toast('Abrindo a turma virtual em nova aba…'); await N.abrirTurmaNoSigaa(d.turmas[+el.dataset.i]); buscouNaRede = true; break;
+        case 'tv-abrir': await tvAbrir(+el.dataset.i); break;
+        case 'tv-ir': await tvIr(el.dataset.k); break;
+        case 'tv-voltar': { const h = S.tv.hist.pop(); if (h) { Object.assign(S.tv, h, { erro: '', carregando: false }); ir('tv'); } break; }
+        case 'tv-sair': ir('turmas'); break;
+        case 'tv-recarregar': if (S.tv.req && S.tv.req.jsf) await tvIr(null, S.tv.req, true); else await tvAbrir(S.tv.i); break;
+        case 'tv-sigaa': {
+          const r = S.tv && S.tv.req;
+          if (r && r.jsf) N.postNovaAba(r.page, r.jsf.formId, r.jsf.params); else await N.abrirTurmaNoSigaa(d.turmas[S.tv.i]);
+          buscouNaRede = true; toast('Abrindo no SIGAA em nova aba…'); break;
+        }
         case 'fav': {
           const f = new Set(S.pessoal.favs); f.has(el.dataset.act) ? f.delete(el.dataset.act) : f.add(el.dataset.act);
           S.pessoal.favs = [...f]; salvarPessoal(); $('#lista-func').innerHTML = T.listaFuncoes(S); break;
@@ -360,6 +370,50 @@
         case 'pal-ir': executarOpcao(+el.dataset.i); break;
       }
     } catch (err) { console.error(err); toast('Erro: ' + err.message); }
+  }
+
+  /* ---------------- turma virtual dentro do painel ---------------- */
+  async function esperarColeta() { for (let k = 0; carregando && k < 600; k++) await new Promise(r => setTimeout(r, 100)); }
+  function tvMostrar(page, req, atual) {
+    const r = SM.parseTurmaVirtual(page.doc, page.url);
+    Object.assign(S.tv, { carregando: false, erro: '', page, req, titulo: r.titulo, html: r.html, acoes: r.acoes, vazio: r.vazio, atual: atual || S.tv.atual });
+    if (r.menu.length) { S.tv.menu = r.menu; S.tv.menuPage = page; }
+    if (S.view === 'tv') { ir('tv'); const sc = $('.scroll'); if (sc) sc.scrollTop = 0; }
+  }
+  async function tvAbrir(i) {
+    const t = S.dados.turmas[i]; if (!t) return;
+    S.tv = { i, carregando: true, hist: [], menu: [] }; ir('tv'); progresso(0.3);
+    if (carregando) { marcarSync('Esperando a atualização terminar…'); await esperarColeta(); }
+    try { const p = await N.entrarTurma(t); buscouNaRede = true; if (S.tv.i === i) tvMostrar(p, null, 'm0.0'); }
+    catch (e) { if (S.tv.i === i) { S.tv.carregando = false; S.tv.erro = e.estado === 'login' ? 'Sua sessão do SIGAA expirou. Entre de novo no SIGAA.' : e.message; ir('tv'); } }
+    finally { progresso(0); marcarSync(); }
+  }
+  /** k = "m<g>.<j>" (menu da turma) ou "c<n>" (link do conteúdo). */
+  async function tvIr(k, reqPronto, recarregar) {
+    const tv = S.tv; if (!tv || tv.carregando) return;
+    let req = reqPronto;
+    if (!req) {
+      if (k[0] === 'm') { const [g, j] = k.slice(1).split('.').map(Number); const x = tv.menu[g] && tv.menu[g].itens[j]; if (!x) return; req = { page: tv.menuPage, jsf: x.jsf, t: x.t }; }
+      else { const x = tv.acoes[+k.slice(1)]; if (!x) return; req = { page: tv.page, jsf: x.jsf, t: x.t }; }
+    }
+    if (carregando) { toast('Espere a atualização dos dados terminar.'); return; }
+    const antes = { page: tv.page, req: tv.req, titulo: tv.titulo, html: tv.html, acoes: tv.acoes, vazio: tv.vazio, atual: tv.atual };
+    tv.carregando = true; const c = $('.tv-c'); if (c) c.classList.add('carr'); progresso(0.4);
+    try {
+      const r = await N.navegarTurma(req.page, req.jsf); buscouNaRede = true;
+      if (r.arquivo) {
+        tv.carregando = false; if (c) c.classList.remove('carr');
+        const url = URL.createObjectURL(r.arquivo.blob), a = document.createElement('a');
+        a.href = url; a.download = r.arquivo.nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+        toast('Baixando ' + r.arquivo.nome); return;
+      }
+      if (!recarregar && antes.html != null) tv.hist.push(antes);
+      if (tv.hist.length > 30) tv.hist.shift();
+      tvMostrar(r.page, req, k && k[0] === 'm' ? k : tv.atual);
+    } catch (e) {
+      tv.carregando = false; if (c) c.classList.remove('carr');
+      toast('Não consegui abrir: ' + (e.message || e));
+    } finally { progresso(0); }
   }
 
   /** Filtros da tela (agenda, semanas), criados sob demanda em S.pessoal.filtros. */
@@ -454,7 +508,7 @@
     const todas = [
       ...T.VIEWS.map(([k, l]) => ({ ic: k, label: 'Ir para ' + l, tag: 'tela', run: () => ir(k) })),
       ...S.dados.turmas.map((t, i) => ({ ic: 'turmas', label: N.titulo(t.nome), tag: t.codigo || 'turma', run: () => { ir('turmas'); setTimeout(() => { const c = $('#t' + i); c && c.scrollIntoView({ block: 'start' }); }, 30); } })),
-      ...S.dados.turmas.map((t, i) => ({ ic: 'ext', label: 'Abrir turma virtual: ' + N.titulo(t.nome), tag: 'SIGAA', run: async () => { toast('Abrindo…'); await N.abrirTurmaNoSigaa(S.dados.turmas[i]); buscouNaRede = true; } })),
+      ...S.dados.turmas.map((t, i) => ({ ic: 'turmas', label: 'Abrir turma virtual: ' + N.titulo(t.nome), tag: 'turma virtual', run: () => tvAbrir(i) })),
       { ic: 'refresh', label: 'Atualizar dados do SIGAA', tag: 'ação', run: () => atualizar(true) },
       { ic: 'lua', label: 'Alternar tema claro/escuro', tag: 'ação', run: () => acionar('tema') },
       { ic: 'down', label: 'Salvar aulas no Google Agenda', tag: 'ação', run: () => acionar('ics-aulas') },
