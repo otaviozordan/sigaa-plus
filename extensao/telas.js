@@ -588,6 +588,62 @@ var SMT = (() => {
     const max = Math.max(1, ...xs.map(s => s.faltas));
     return `<div class="card"><h3>Faltas por semestre</h3>${xs.map(s => `<div class="hb"><span class="nm">${esc(s.titulo)}</span><span class="tr"><i style="width:${100 * s.faltas / max}%;background:var(--ac)"></i></span><span class="small" style="width:70px;text-align:right"><b>${s.faltas}</b> <span class="fade">aulas</span></span></div>`).join('')}</div>`;
   }
+  /* ---------- simulador de índices ---------- */
+  /**
+   * Modelo do simulador. Ancora no valor oficial do índice (SIGAA) e descobre, pelas suas notas antigas,
+   * se ele conta reprovações (média de todas) ou só aprovações (média de conclusão).
+   * Peso de cada disciplina do semestre = aulas da CH dela / média das aulas (sem CH = 1).
+   */
+  function modeloSimIdx(S) {
+    const d = N.desempenho(S.dados, sitClass), per = S.dados.periodo, aprov = S.cfg.mediaAprov || 6;
+    const media = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+    const passadas = d.todas.filter(l => l.sem !== per && ['s-ok', 's-bad'].includes(sitClass(l.sit)));
+    const todas = passadas.map(l => l.nota), soAprov = passadas.filter(l => sitClass(l.sit) === 's-ok').map(l => l.nota);
+    const mT = media(todas), mA = media(soAprov);
+    let idxs = S.dados.perfil.indices.map(i => ({ k: i.k, t: i.t, v: N.num(i.v) }))
+      .filter(i => i.v != null && i.v > 0 && i.v <= 10 && !/^IE|IECH|IEPL|IEA/i.test(i.k));
+    const estimado = !idxs.length;
+    if (estimado && mT != null) idxs = [{ k: 'Média geral', t: 'Média das notas finais (estimada pelo SIGAA+)', v: mT }];
+    idxs = idxs.map(i => {
+      const conta = mT == null || mA == null ? true : Math.abs(i.v - mT) <= Math.abs(i.v - mA);
+      return { ...i, contaReprov: conta, n: conta ? todas.length : soAprov.length };
+    });
+    const ts = S.dados.turmas, chs = ts.map(t => t.freq && t.freq.aulasCH).filter(x => x > 0), chM = media(chs) || 1;
+    const sim = S.pessoal.simIdx || {};
+    const itens = ts.map(t => {
+      const n = statusNota(S, t), k = chaveT(t);
+      const padrao = n.media != null ? Math.round(n.media * 10) / 10 : aprov;
+      const v = sim[k] != null ? sim[k] : padrao;
+      return { t, k, v, padrao, w: t.freq && t.freq.aulasCH > 0 ? t.freq.aulasCH / chM : 1, ok: v >= aprov };
+    });
+    const res = idxs.map(i => {
+      const conta = itens.filter(x => i.contaReprov || x.ok);
+      const W = i.n || 0, novo = (i.v * W + conta.reduce((a, x) => a + x.v * x.w, 0)) / (W + conta.reduce((a, x) => a + x.w, 0) || 1);
+      return { ...i, novo: conta.length || W ? novo : i.v };
+    });
+    const pesoTot = itens.reduce((a, x) => a + x.w, 0);
+    return { itens, res, estimado, aprov, mediaSem: pesoTot ? itens.reduce((a, x) => a + x.v * x.w, 0) / pesoTot : null, reprov: itens.filter(x => !x.ok).length };
+  }
+  function resultadoSimIdx(S) {
+    const m = modeloSimIdx(S);
+    const cel = r => { const dl = r.novo - r.v, cor = Math.abs(dl) < 0.005 ? 'var(--mut)' : dl > 0 ? 'var(--ok)' : 'var(--bad)';
+      return `<div class="si-r" title="${esc(r.t || r.k)}${r.contaReprov ? ' — conta reprovações' : ' — só disciplinas aprovadas'}"><span class="si-k">${esc(r.k)}</span><b>${f2(r.novo)}</b><span class="si-d" style="color:${cor}">${Math.abs(dl) < 0.005 ? 'igual' : (dl > 0 ? '▲ ' : '▼ ') + f2(Math.abs(dl))}</span><span class="small fade">hoje ${f2(r.v)}</span></div>`; };
+    return `${m.res.map(cel).join('')}
+      <div class="si-r"><span class="si-k">Média do semestre</span><b style="color:${m.mediaSem >= m.aprov ? 'var(--ok)' : 'var(--bad)'}">${f1(m.mediaSem)}</b><span class="si-d" style="color:${m.reprov ? 'var(--bad)' : 'var(--ok)'}">${m.reprov ? `${m.reprov} ${m.reprov === 1 ? 'reprovação' : 'reprovações'}` : 'tudo aprovado'}</span><span class="small fade">com essas notas</span></div>`;
+  }
+  function simIndices(S) {
+    const m = modeloSimIdx(S);
+    if (!m.itens.length || !m.res.length) return '';
+    const linhas = m.itens.map(x => `<div class="si-l"><span class="dot" style="background:${x.t.cor};margin:0"></span><span class="si-n" title="${esc(titulo(x.t.nome))}">${esc(titulo(x.t.nome))}</span>
+      <input type="range" min="0" max="10" step="0.1" value="${x.v}" data-in="sim-idx" data-k="${esc(x.k)}" aria-label="Nota final de ${esc(titulo(x.t.nome))}">
+      <b class="si-v ${x.ok ? 'ok-t' : 'err'}" data-v-de="${esc(x.k)}">${f1(x.v)}</b></div>`).join('');
+    return `<div class="card" id="sim-idx"><h3>${ic('desempenho')} Simular meus índices<span class="r small muted">arraste as notas finais deste semestre</span></h3>
+      <div class="si"><div class="si-ls">${linhas}
+        <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="simidx-reset">Usar minhas notas atuais</button>${[6, 8, 10].map(n => `<button class="btn sm" data-a="simidx-todas" data-n="${n}">Tudo ${n}</button>`).join('')}</div></div>
+        <div class="si-res" id="simidx-res">${resultadoSimIdx(S)}</div></div>
+      <p class="small fade" style="margin:10px 0 0">Estimativa: parte do valor oficial que o SIGAA mostra hoje e soma as notas deste semestre${m.itens.some(x => x.w !== 1) ? ', com peso pela carga horária de cada disciplina' : ''}. Abaixo de ${f1(m.aprov)} conta como reprovação. O valor oficial só sai quando o SIGAA fechar o semestre.</p></div>`;
+  }
+
   function vDesempenho(S) {
     const d = N.desempenho(S.dados, sitClass), p = S.dados.perfil;
     if (!d.sems.length) return `<h2>Desempenho</h2><div class="card muted">${S.dados.parcial ? 'Carregando notas…' : 'Sem notas para analisar.'}</div>`;
@@ -610,6 +666,7 @@ var SMT = (() => {
       ${p.pctInteg != null ? `<div class="stat"><div class="v">${p.pctInteg}%</div><div class="k">do curso concluído</div><div class="bar"><i style="width:${p.pctInteg}%;background:var(--ac)"></i></div></div>` : ''}
       <div class="stat"><div class="v">${d.sems.length}</div><div class="k">semestres cursados</div></div></div>`;
     h += semestreAtual(S);
+    h += simIndices(S);
     // gráfico de linha (série única: sem legenda; título nomeia)
     if (pts.length >= 1) {
       const W = 640, H = 220, L = 30, R = 16, T = 18, B = 26, x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1)), y = v => T + (10 - v) * (H - T - B) / 10;
@@ -962,6 +1019,6 @@ var SMT = (() => {
   const esqueleto = (msg, p) => `<div class="load"><div class="msg b">${esc(msg)}</div><div class="pg"><i style="width:${Math.round((p || 0) * 100)}%"></i></div><div class="small">Na primeira vez leva uns segundos: o SIGAA só mostra a frequência entrando em cada turma.<br>Depois disso o painel abre na hora.</div></div>
     <div class="grid">${'<div class="sk" style="height:76px"></div>'.repeat(4)}</div><div class="cols"><div class="sk" style="height:260px"></div><div class="sk" style="height:260px"></div></div>`;
 
-  return { faixaAtualizacao, blocoAtualizacao, ic, VIEWS, nomeView, TELAS, listaNotas, listaFuncoes, novidades, sitClass, esqueleto, itensAgenda, chaveT };
+  return { resultadoSimIdx, faixaAtualizacao, blocoAtualizacao, ic, VIEWS, nomeView, TELAS, listaNotas, listaFuncoes, novidades, sitClass, esqueleto, itensAgenda, chaveT };
 })();
 if (typeof module !== 'undefined') module.exports = SMT;

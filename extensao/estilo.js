@@ -483,6 +483,18 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .wk2-vaz{padding:8px 16px;border:1px dashed var(--bd2);border-radius:12px;font-size:13px;color:var(--mut)}
 .wk2-vaz .ok-t{color:var(--ok);font-weight:600}
 @media (max-width:820px){.wk2{flex-direction:column;gap:8px}.wk2-n{width:auto;flex-direction:row;align-items:baseline;gap:8px}.wi .small{display:none}}
+/* simulador de índices */
+.si{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
+.si-l{display:flex;align-items:center;gap:10px;padding:5px 0}
+.si-n{width:180px;flex:none;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.si-l input[type=range]{flex:1;min-width:80px;accent-color:var(--ac);cursor:pointer}
+.si-v{width:34px;text-align:right;font-size:16px;font-variant-numeric:tabular-nums}
+.si-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.si-r{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;line-height:1.25}
+.si-r b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.si-k{font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.si-d{font-size:13px;font-weight:700}
+@media (max-width:900px){.si{grid-template-columns:1fr}.si-n{width:120px}}
 /* turma virtual */
 .tv-top{display:flex;align-items:center;gap:12px;padding:12px 14px}.tv-top .grow{flex:1;min-width:0}
 .tv{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:start}

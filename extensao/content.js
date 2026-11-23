@@ -293,6 +293,8 @@
           if (r && r.jsf) N.postNovaAba(r.page, r.jsf.formId, r.jsf.params); else await N.abrirTurmaNoSigaa(d.turmas[S.tv.i]);
           buscouNaRede = true; toast('Abrindo no SIGAA em nova aba…'); break;
         }
+        case 'simidx-reset': S.pessoal.simIdx = {}; salvarPessoal(); ir('desempenho', true); break;
+        case 'simidx-todas': S.pessoal.simIdx = Object.fromEntries(d.turmas.map(t => [T.chaveT(t), +el.dataset.n])); salvarPessoal(); ir('desempenho', true); break;
         case 'fav': {
           const f = new Set(S.pessoal.favs); f.has(el.dataset.act) ? f.delete(el.dataset.act) : f.add(el.dataset.act);
           S.pessoal.favs = [...f]; salvarPessoal(); $('#lista-func').innerHTML = T.listaFuncoes(S); break;
@@ -431,6 +433,13 @@
     else if (k === 'q-notas') { S.filtroNotas = el.value; $('#lista-notas').innerHTML = T.listaNotas(S); }
     else if (k === 'anot') { S.pessoal.anot[el.dataset.k] = el.value; salvarPessoal(); }
     else if (k === 'pal') filtrarPaleta(el.value);
+    else if (k === 'sim-idx') {
+      const v = Math.round(+el.value * 10) / 10;
+      S.pessoal.simIdx = { ...(S.pessoal.simIdx || {}), [el.dataset.k]: v }; salvarPessoal();
+      const b = [...root.querySelectorAll('[data-v-de]')].find(x => x.dataset.vDe === el.dataset.k);
+      if (b) { b.textContent = N.f1(v); b.className = 'si-v ' + (v >= (S.cfg.mediaAprov || 6) ? 'ok-t' : 'err'); }
+      const r = $('#simidx-res'); if (r) r.innerHTML = T.resultadoSimIdx(S);
+    }
     else if (k === 'ini-bloco') {
       const o = new Set(S.pessoal.inicioOcultos || []); if (el.checked) o.delete(el.dataset.k); else o.add(el.dataset.k);
       S.pessoal.inicioOcultos = [...o]; salvarPessoal(); ir('inicio', true);
@@ -509,6 +518,7 @@
       ...T.VIEWS.map(([k, l]) => ({ ic: k, label: 'Ir para ' + l, tag: 'tela', run: () => ir(k) })),
       ...S.dados.turmas.map((t, i) => ({ ic: 'turmas', label: N.titulo(t.nome), tag: t.codigo || 'turma', run: () => { ir('turmas'); setTimeout(() => { const c = $('#t' + i); c && c.scrollIntoView({ block: 'start' }); }, 30); } })),
       ...S.dados.turmas.map((t, i) => ({ ic: 'turmas', label: 'Abrir turma virtual: ' + N.titulo(t.nome), tag: 'turma virtual', run: () => tvAbrir(i) })),
+      { ic: 'desempenho', label: 'Simular meus índices (IRA, MC…)', tag: 'ação', run: () => { ir('desempenho'); setTimeout(() => { const c = $('#sim-idx'); c && c.scrollIntoView({ block: 'start' }); }, 30); } },
       { ic: 'refresh', label: 'Atualizar dados do SIGAA', tag: 'ação', run: () => atualizar(true) },
       { ic: 'lua', label: 'Alternar tema claro/escuro', tag: 'ação', run: () => acionar('tema') },
       { ic: 'down', label: 'Salvar aulas no Google Agenda', tag: 'ação', run: () => acionar('ics-aulas') },
