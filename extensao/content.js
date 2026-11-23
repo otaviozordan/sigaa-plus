@@ -433,11 +433,15 @@
     else if (k === 'q-notas') { S.filtroNotas = el.value; $('#lista-notas').innerHTML = T.listaNotas(S); }
     else if (k === 'anot') { S.pessoal.anot[el.dataset.k] = el.value; salvarPessoal(); }
     else if (k === 'pal') filtrarPaleta(el.value);
-    else if (k === 'sim-idx') {
-      const v = Math.round(+el.value * 10) / 10;
+    else if (k === 'sim-idx' || k === 'sim-idx-n') {
+      // barra ou campo digitado (aceita vírgula); os dois ficam sincronizados
+      let v = k === 'sim-idx' ? +el.value : N.num(el.value);
+      if (v == null || isNaN(v)) return;
+      v = Math.round(Math.min(10, Math.max(0, v)) * 10) / 10;
       S.pessoal.simIdx = { ...(S.pessoal.simIdx || {}), [el.dataset.k]: v }; salvarPessoal();
-      const b = [...root.querySelectorAll('[data-v-de]')].find(x => x.dataset.vDe === el.dataset.k);
-      if (b) { b.textContent = N.f1(v); b.className = 'si-v ' + (v >= (S.cfg.mediaAprov || 6) ? 'ok-t' : 'err'); }
+      const par = el.closest('.si-l'), rg = par && par.querySelector('input[type=range]'), tx = par && par.querySelector('.si-v');
+      if (rg && rg !== el) rg.value = v;
+      if (tx) { if (tx !== el) tx.value = N.f1(v); tx.classList.toggle('ok-t', v >= (S.cfg.mediaAprov || 6)); tx.classList.toggle('err', v < (S.cfg.mediaAprov || 6)); }
       const r = $('#simidx-res'); if (r) r.innerHTML = T.resultadoSimIdx(S);
     }
     else if (k === 'ini-bloco') {
@@ -453,6 +457,7 @@
 
   async function onChange(e) {
     const el = e.target;
+    if (el.dataset.in === 'sim-idx-n') { const v = (S.pessoal.simIdx || {})[el.dataset.k]; if (v != null) el.value = N.f1(v); return; }
     if (el.dataset.in === 'feito') {
       const t = S.pessoal.tarefas.find(x => x.id === el.dataset.id); if (t) { t.feito = el.checked; salvarPessoal(); setTimeout(() => ir('agenda', true), 250); }
     } else if (el.dataset.in === 'importar' && el.files[0]) {

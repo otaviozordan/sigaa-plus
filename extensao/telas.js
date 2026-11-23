@@ -636,8 +636,8 @@ var SMT = (() => {
     if (!m.itens.length || !m.res.length) return '';
     const linhas = m.itens.map(x => `<div class="si-l"><span class="dot" style="background:${x.t.cor};margin:0"></span><span class="si-n" title="${esc(titulo(x.t.nome))}">${esc(titulo(x.t.nome))}</span>
       <input type="range" min="0" max="10" step="0.1" value="${x.v}" data-in="sim-idx" data-k="${esc(x.k)}" aria-label="Nota final de ${esc(titulo(x.t.nome))}">
-      <b class="si-v ${x.ok ? 'ok-t' : 'err'}" data-v-de="${esc(x.k)}">${f1(x.v)}</b></div>`).join('');
-    return `<div class="card" id="sim-idx"><h3>${ic('desempenho')} Simular meus índices<span class="r small muted">arraste as notas finais deste semestre</span></h3>
+      <input type="text" inputmode="decimal" maxlength="4" class="si-v ${x.ok ? 'ok-t' : 'err'}" value="${f1(x.v)}" data-in="sim-idx-n" data-k="${esc(x.k)}" aria-label="Digite a nota final de ${esc(titulo(x.t.nome))}" title="Digite a nota (ex.: 7,5)"></div>`).join('');
+    return `<div class="card" id="sim-idx"><h3>${ic('desempenho')} Simular meus índices<span class="r small muted">arraste ou digite as notas finais deste semestre</span></h3>
       <div class="si"><div class="si-ls">${linhas}
         <div class="acts" style="margin-top:10px"><button class="btn sm" data-a="simidx-reset">Usar minhas notas atuais</button>${[6, 8, 10].map(n => `<button class="btn sm" data-a="simidx-todas" data-n="${n}">Tudo ${n}</button>`).join('')}</div></div>
         <div class="si-res" id="simidx-res">${resultadoSimIdx(S)}</div></div>

@@ -488,7 +488,9 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .si-l{display:flex;align-items:center;gap:10px;padding:5px 0}
 .si-n{width:180px;flex:none;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .si-l input[type=range]{flex:1;min-width:80px;accent-color:var(--ac);cursor:pointer}
-.si-v{width:34px;text-align:right;font-size:16px;font-variant-numeric:tabular-nums}
+.si-v{width:58px;flex:none;text-align:center;font-family:inherit;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;padding:5px 6px;border:1px solid var(--bd2);border-radius:8px;background:var(--card);color:var(--tx)}
+.si-v:focus{outline:2px solid var(--ac);border-color:transparent}
+.si-v.ok-t{color:var(--ok)}.si-v.err{color:var(--bad)}
 .si-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
 .si-r{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;line-height:1.25}
 .si-r b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
