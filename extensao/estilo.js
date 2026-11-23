@@ -483,6 +483,30 @@ table.tsig td.nu,table.tsig th.nu{background:color-mix(in srgb,var(--acs) 80%,tr
 .wk2-vaz{padding:8px 16px;border:1px dashed var(--bd2);border-radius:12px;font-size:13px;color:var(--mut)}
 .wk2-vaz .ok-t{color:var(--ok);font-weight:600}
 @media (max-width:820px){.wk2{flex-direction:column;gap:8px}.wk2-n{width:auto;flex-direction:row;align-items:baseline;gap:8px}.wi .small{display:none}}
+/* desempenho: documentos, índices, integralização, currículo */
+.docs{margin:-4px 0 14px}
+.ix{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--bd)}.ix:first-of-type{border-top:0}
+.ix-v{width:64px;flex:none;display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.ix-v b{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}.ix-v span{font-size:11.5px;font-weight:700;color:var(--fade)}
+.ix .chip{margin-left:4px;vertical-align:1px}
+.ig-top{display:flex;align-items:baseline;gap:8px}.ig-top b{font-size:30px;font-weight:800}
+.ig-bar{height:10px;border-radius:99px;background:var(--bg2);overflow:hidden;margin-top:6px}.ig-bar i{display:block;height:100%;border-radius:99px;background:var(--ac)}
+.ig-prev{display:flex;gap:10px;align-items:flex-start;background:var(--acs);border-radius:12px;padding:10px 12px;margin-top:12px}
+.ig-prev svg.i{width:20px;height:20px;color:var(--ac);flex:none;margin-top:1px}
+.cu-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.cu-res>div{background:var(--bg);border-radius:12px;padding:9px 12px;display:flex;flex-direction:column;line-height:1.2}
+.cu-res b{font-size:24px;font-weight:800}.cu-res span{font-size:12.5px;color:var(--mut)}
+.cu-per{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}
+.cu-p{width:30px;flex:none;font-weight:800;color:var(--fade);padding-top:4px}
+.cu-l{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.cu{font-size:12.5px;padding:4px 9px;border-radius:8px;border:1px solid var(--bd2);background:var(--card);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cu b{font-weight:700;font-variant-numeric:tabular-nums;margin-right:2px}
+.cu-ok{background:var(--okb);border-color:transparent;color:var(--ok)}
+.cu-and{background:var(--acs);border-color:var(--ac);color:var(--ac)}
+.cu-rep{background:var(--badb);border-color:var(--bad);color:var(--bad)}
+.cu-falta{color:var(--tx)}
+.leg i.cu-ok,.leg i.cu-and,.leg i.cu-rep,.leg i.cu-falta{border:1px solid var(--bd2)}
+.leg i.cu-ok{background:var(--okb);border-color:var(--ok)}.leg i.cu-and{background:var(--acs);border-color:var(--ac)}.leg i.cu-rep{background:var(--badb);border-color:var(--bad)}.leg i.cu-falta{background:var(--card)}
 /* simulador de índices */
 .si{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
 .si-l{display:flex;align-items:center;gap:10px;padding:5px 0}

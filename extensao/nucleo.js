@@ -236,6 +236,21 @@ var SMN = (() => {
     if (e !== 'ok') throw Object.assign(new Error(e === 'login' ? 'sua sessão do SIGAA expirou, entre de novo' : e), { estado: e });
     return { page: { url: r.url, html, doc } };
   }
+  /** Lê a estrutura curricular do curso (menu Ensino › Consultar Estrutura Curricular). */
+  async function carregarCurriculo(menu) {
+    const item = menu.find(m => /estrutura curricular/i.test(m.label)) || menu.find(m => /curr[íi]culo|curricular/i.test(m.label + ' ' + m.act));
+    if (!item) throw new Error('não achei "Consultar Estrutura Curricular" no menu do SIGAA. Itens com "curr": ' + (menu.filter(m => /curr/i.test(m.label)).map(m => m.label).join(', ') || 'nenhum'));
+    const r = /#\{/.test(item.act)
+      ? await postForm(await abrirPortal(), 'menu:form_menu_discente', [['jscook_action', item.act]])
+      : await fetchDoc(new URL(item.act, origem()).href);
+    const comps = SM.parseCurriculo(r.doc);
+    try { await fetchDoc(portalUrl()); } catch { }
+    if (!comps.length) {
+      const tit = clean((r.doc.querySelector('h2, .descricaoOperacao, title') || {}).textContent || '').slice(0, 100);
+      throw new Error(`a página "${item.label}" abriu, mas não encontrei disciplinas nela${tit ? ` (título: ${tit})` : ''}`);
+    }
+    return { em: new Date().toISOString(), fonte: item.label, comps };
+  }
   async function abrirMenuNoSigaa(act) {
     if (!/#\{/.test(act)) { window.open(new URL(act, origem()).href, '_blank'); return; }
     const p = await abrirPortal();
@@ -593,7 +608,7 @@ var SMN = (() => {
 
   return {
     CORES, DIAS, DIA_MS, HORAS_PADRAO, HORAS_ANTIGAS, CFG_PADRAO, AUTOR, LINKS, versaoMaior, verificarAtualizacao, clean, esc, norm, busca, titulo, parseData, fmt, segunda, hoje, isoDia, deIso, atras, dataLonga,
-    diasAte, quando, num, f1, f2, minutos, store, portalUrl, fetchDoc, postForm, abrirPortal, coletar, abrirTurmaNoSigaa, abrirMenuNoSigaa, entrarTurma, navegarTurma, postNovaAba,
+    diasAte, quando, num, f1, f2, minutos, store, portalUrl, fetchDoc, postForm, abrirPortal, coletar, abrirTurmaNoSigaa, abrirMenuNoSigaa, entrarTurma, navegarTurma, postNovaAba, carregarCurriculo,
     ehCampoNota, atualizarHistorico, colunas, montarModelo, limitesSemestre, simular, planoAvaliacao, simularPlano, aulasEmDatas, labsParaGoogle, horaDo, blocos, textoHorario, aulasDoDia,
     gerarICS, linkGoogle, eventosSemanais, eventosAulas, eventosAgenda, csvNotas, baixar, desempenho,
   };

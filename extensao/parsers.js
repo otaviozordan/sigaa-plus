@@ -327,6 +327,39 @@ var SM = (() => {
     return { titulo, menu, html: raiz.innerHTML.trim(), acoes, vazio: !clean(raiz.textContent) };
   }
 
+  /**
+   * Estrutura curricular -> [{cod, nome, ch, per, tipo}]. Aceita tabelas com o período/semestre em linhas de
+   * título, captions ou cabeçalhos, e código numa célula própria ou como "COD - NOME".
+   */
+  function parseCurriculo(doc) {
+    const COD = /^([A-Z]{2,6}\d{2,4}[A-Z]?)\b/;
+    const PER = /(\d{1,2})\s*[ºo°ª.]?\s*(?:per[ií]odo|semestre|n[ií]vel)|(?:per[ií]odo|semestre|n[ií]vel)\s*:?\s*(\d{1,2})\b/i;
+    const out = [], vistos = new Set();
+    let per = '', tipo = 'obrigatória';
+    const cabecalho = t => {
+      const m = PER.exec(t); if (m) per = m[1] || m[2];
+      if (/optativ|eletiv/i.test(t)) { tipo = 'optativa'; if (!m) per = ''; }
+      else if (/complementar/i.test(t)) { tipo = 'complementar'; if (!m) per = ''; }
+      else if (/obrigat/i.test(t)) tipo = 'obrigatória';
+    };
+    doc.querySelectorAll('caption, h2, h3, h4, legend, tr').forEach(el => {
+      if (el.tagName !== 'TR') { const t = clean(el.textContent); if (t.length < 120) cabecalho(t); return; }
+      const cells = [...el.cells].map(c => clean(c.textContent));
+      const i = cells.findIndex(c => COD.test(c));
+      if (i < 0) { const t = cells.join(' '); if (t && t.length < 120) cabecalho(t); return; }
+      const cod = COD.exec(cells[i])[1];
+      let nome = clean(cells[i].slice(cod.length).replace(/^\s*[-–:]\s*/, ''));
+      if (!nome) nome = cells.slice(i + 1).find(c => c.length > 3 && !/^\d+\s*h?$/i.test(c) && !COD.test(c)) || '';
+      nome = nome.replace(/\s*-\s*\d+\s*h\.?$/i, '');
+      const chC = cells.find((c, j) => j !== i && /^\d{2,3}\s*h?\.?$/i.test(c));
+      const chN = /(\d{2,3})\s*h\b/i.exec(cells[i]);
+      const ch = chC ? parseInt(chC, 10) : chN ? +chN[1] : null;
+      if (vistos.has(cod)) return; vistos.add(cod);
+      out.push({ cod, nome, ch, per, tipo });
+    });
+    return out;
+  }
+
   /** Página atual é login / aviso / vínculo? */
   function estadoPagina(url, doc) {
     if (/verTelaLogin|logar\.do|expirad|public\//i.test(url) || doc.querySelector('form[name=loginForm]')) return 'login';
@@ -335,6 +368,6 @@ var SM = (() => {
     return 'ok';
   }
 
-  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, partesTabela, parseNotasTurma, parseTurmaVirtual };
+  return { clean, jsfParams, formFields, findLink, parsePerfil, parseTurmas, parseAtividades, parseAtualizacoes, parseMenu, parseNotas, parseFrequencia, estadoPagina, findLinkRe, linksMenu, cabecalhos, partesTabela, parseNotasTurma, parseTurmaVirtual, parseCurriculo };
 })();
 if (typeof module !== 'undefined') module.exports = SM;

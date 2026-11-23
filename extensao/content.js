@@ -19,6 +19,7 @@
   async function carregarPessoal() {
     const p = await store.get(chaveP());
     S.pessoal = { anot: {}, tarefas: [], favs: [], sim: {}, ...(p || {}) };
+    S.curriculo = await store.get('curriculo:' + ((S.dados && S.dados.perfil.matricula) || 'anon'));
     if (!S.pessoal.inicioV3) { if (S.pessoal.ordem) { delete S.pessoal.ordem['inicio:a']; delete S.pessoal.ordem['inicio:b']; } S.pessoal.inicioV3 = true; }
   }
 
@@ -292,6 +293,18 @@
           const r = S.tv && S.tv.req;
           if (r && r.jsf) N.postNovaAba(r.page, r.jsf.formId, r.jsf.params); else await N.abrirTurmaNoSigaa(d.turmas[S.tv.i]);
           buscouNaRede = true; toast('Abrindo no SIGAA em nova aba…'); break;
+        }
+        case 'curr-falta': S.currSoFalta = el.checked; ir('desempenho', true); break;
+        case 'curr-carregar': {
+          if (carregando) { toast('Espere a atualização dos dados terminar.'); break; }
+          S.currCarregando = true; S.currErro = ''; ir('desempenho', true); progresso(0.4);
+          try {
+            S.curriculo = await N.carregarCurriculo(d.menu); buscouNaRede = true;
+            await store.set('curriculo:' + (d.perfil.matricula || 'anon'), S.curriculo);
+            toast(`${S.curriculo.comps.length} disciplinas lidas do currículo.`);
+          } catch (err) { S.currErro = err.message; }
+          finally { S.currCarregando = false; progresso(0); ir('desempenho', true); setTimeout(() => { const c = $('#curr'); c && c.scrollIntoView({ block: 'start' }); }, 30); }
+          break;
         }
         case 'simidx-reset': S.pessoal.simIdx = {}; salvarPessoal(); ir('desempenho', true); break;
         case 'simidx-todas': S.pessoal.simIdx = Object.fromEntries(d.turmas.map(t => [T.chaveT(t), +el.dataset.n])); salvarPessoal(); ir('desempenho', true); break;

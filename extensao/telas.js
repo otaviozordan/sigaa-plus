@@ -588,6 +588,94 @@ var SMT = (() => {
     const max = Math.max(1, ...xs.map(s => s.faltas));
     return `<div class="card"><h3>Faltas por semestre</h3>${xs.map(s => `<div class="hb"><span class="nm">${esc(s.titulo)}</span><span class="tr"><i style="width:${100 * s.faltas / max}%;background:var(--ac)"></i></span><span class="small" style="width:70px;text-align:right"><b>${s.faltas}</b> <span class="fade">aulas</span></span></div>`).join('')}</div>`;
   }
+  /* ---------- índices explicados ---------- */
+  const INDICES = {
+    IRA: ['Índice de Rendimento Acadêmico', 'Média das notas finais de tudo que você cursou, inclusive reprovações, com peso pela carga horária.', 'nota'],
+    CR: ['Coeficiente de Rendimento', 'Média das notas finais das disciplinas cursadas, com peso pela carga horária.', 'nota'],
+    MC: ['Média de Conclusão', 'Média das notas finais só das disciplinas em que você foi aprovado, com peso pela carga horária.', 'nota'],
+    MCN: ['Média de Conclusão Normalizada', 'Sua MC comparada com a dos outros alunos do seu curso.', 'comp'],
+    IECH: ['Eficiência em Carga Horária', 'Quanto da carga horária que você cursou virou aprovação. 1 = aprovou tudo o que cursou.', 'razao'],
+    IEPL: ['Eficiência em Períodos Letivos', 'Seu ritmo: carga horária já integralizada ÷ a esperada para os períodos que passaram. 1 = no ritmo; acima de 1 = adiantado.', 'razao'],
+    IEA: ['Eficiência Acadêmica', 'Junta nota, aproveitamento e ritmo (MC × IECH × IEPL) num número só.', 'nota'],
+    IEAN: ['Eficiência Acadêmica Normalizada', 'Seu IEA comparado com o dos outros alunos do seu curso.', 'comp'],
+  };
+  function avaliaIndice(k, v, tipo) {
+    if (v == null || tipo === 'comp') return null;
+    const [a, b, c] = tipo === 'razao' ? [0.95, 0.85, 0.7] : [8, 7, 6];
+    return v >= a ? ['ótimo', 'ok'] : v >= b ? ['bom', 'ok'] : v >= c ? ['regular', 'warn'] : ['atenção', 'bad'];
+  }
+  function indicesExplicados(S) {
+    const xs = S.dados.perfil.indices; if (!xs.length) return '';
+    return `<div class="card"><h3>${ic('info')} Seus índices, explicados</h3>${xs.map(i => {
+      const k = i.k.toUpperCase().replace(/[^A-Z]/g, ''), def = INDICES[k] || [i.t || i.k, '', 'nota'], v = N.num(i.v);
+      const tipo = def[2] === 'nota' && v != null && v <= 1.5 ? 'razao' : def[2], av = avaliaIndice(k, v, tipo);
+      return `<div class="ix"><div class="ix-v"><b>${esc(v == null ? i.v : v.toFixed(2).replace('.', ','))}</b><span>${esc(i.k)}</span></div>
+        <div class="grow"><div class="b">${esc(def[0])}${av ? ` <span class="chip ${av[1]}">${av[0]}</span>` : ''}</div>${def[1] ? `<div class="small muted">${esc(def[1])}</div>` : ''}</div></div>`;
+    }).join('')}<p class="small fade" style="margin:8px 0 0">"Ótimo/bom/regular" é só uma referência do SIGAA+, não uma regra da UNIFEI.</p></div>`;
+  }
+
+  /* ---------- integralização ---------- */
+  function integralizacao(S, d) {
+    const p = S.dados.perfil, pct = p.pctInteg, integ = p.integ || [];
+    if (pct == null && !integ.length) return '';
+    const tipoDe = k => /obrigat/i.test(k) ? 'obrigatória' : /optativ|eletiv/i.test(k) ? 'optativa' : /complement/i.test(k) ? 'complementar' : /total/i.test(k) ? 'total' : '';
+    const pend = integ.filter(([k]) => /pend|falt|restant/i.test(k)), outras = integ.filter(x => !pend.includes(x));
+    const fechados = d.sems.filter(s => s.titulo !== S.dados.periodo && s.aprov > 0).length;
+    let prev = '';
+    if (pct != null && pct > 0 && pct < 100 && fechados) {
+      const ritmo = pct / fechados, faltam = Math.ceil((100 - pct) / ritmo);
+      const [a, s] = (S.dados.periodo || '').split('.').map(Number);
+      let fim = '';
+      if (a && s) { const n = a * 2 + (s - 1) + faltam - (d.sems.some(x => x.titulo === S.dados.periodo) ? 1 : 0); fim = `${Math.floor(n / 2)}.${(n % 2) + 1}`; }
+      prev = `<div class="ig-prev">${ic('agenda')}<div><b>Formatura prevista ≈ ${esc(fim || `${faltam} semestres`)}</b><div class="small muted">No seu ritmo de ${f1(ritmo)}% do curso por semestre, faltam cerca de ${pl(faltam, 'semestre')}${fim ? ' (contando este)' : ''}.</div></div></div>`;
+    }
+    const maxP = Math.max(1, ...pend.map(x => x[1]));
+    return `<div class="card"><h3>${ic('desempenho')} Integralização do curso</h3>
+      ${pct != null ? `<div class="ig-top"><b>${pct}%</b><span class="muted">do curso concluído</span></div><div class="ig-bar"><i style="width:${pct}%"></i></div>` : ''}
+      ${prev}
+      ${pend.length ? `<div class="sec-t">Carga horária que falta</div>${pend.map(([k, v]) => `<div class="hb" title="${esc(k)}"><span class="nm" style="width:110px">${esc(tipoDe(k) || k)}</span><span class="tr"><i style="width:${100 * v / maxP}%;background:${v ? 'var(--warn)' : 'var(--ok)'}"></i></span><span class="small" style="width:64px;text-align:right"><b>${v}</b> h</span></div>`).join('')}` : ''}
+      ${outras.length ? `<div class="sec-t">Outros dados</div>${outras.map(([k, v]) => `<div class="row small"><span class="grow">${esc(k)}</span><b>${v} h</b></div>`).join('')}` : ''}</div>`;
+  }
+
+  /* ---------- documentos ---------- */
+  function atalhosDocumentos(S) {
+    const tipos = [['Histórico', /hist[óo]rico/i], ['Atestado de matrícula', /atestado de matr/i], ['Declaração de vínculo', /declara[çc][ãa]o.*v[íi]nculo/i], ['Comprovante de matrícula', /comprovante.*matr/i], ['Índices acadêmicos', /[íi]ndices acad/i], ['Estrutura curricular', /estrutura curricular/i]];
+    const bts = tipos.map(([nome, re]) => { const m = S.dados.menu.find(x => re.test(x.label)); return m ? `<button class="btn sm" data-a="menu" data-act="${esc(m.act)}" title="${esc(m.label)} (abre no SIGAA)">${ic('down')} ${esc(nome)}</button>` : ''; }).join('');
+    return bts ? `<div class="acts docs"><span class="small muted">Documentos do SIGAA:</span>${bts}</div>` : '';
+  }
+
+  /* ---------- matérias do currículo ---------- */
+  function curriculo(S, d) {
+    const c = S.curriculo;
+    const topo = `<h3>${ic('turmas')} Matérias do currículo`;
+    if (!c || !c.comps) return `<div class="card" id="curr">${topo}</h3><p class="small muted" style="margin:0 0 10px">O SIGAA+ lê a estrutura curricular do seu curso e marca o que você já fez, o que está cursando e o que falta.</p>
+      ${S.currErro ? `<p class="small err">Não deu certo: ${esc(S.currErro)}</p>` : ''}<button class="btn pri" data-a="curr-carregar" ${S.currCarregando ? 'disabled' : ''}>${S.currCarregando ? 'Carregando…' : `${ic('refresh')} Carregar do SIGAA`}</button></div>`;
+    const st = new Map();
+    d.sems.forEach(s => s.linhas.forEach(l => {
+      const k = (l.cod || '').toUpperCase().trim(), cl = sitClass(l.sit), ant = st.get(k);
+      const v = cl === 's-ok' ? 'ok' : cl === 's-inf' || s.titulo === S.dados.periodo ? 'and' : cl === 's-bad' ? 'rep' : '';
+      if (v && ant !== 'ok' && !(ant === 'and' && v === 'rep')) st.set(k, v);
+    }));
+    S.dados.turmas.forEach(t => { const k = (t.codigo || '').toUpperCase(); if (k && st.get(k) !== 'ok') st.set(k, 'and'); });
+    const com = c.comps.map(x => ({ ...x, s: st.get(x.cod) || 'falta' }));
+    const obr = com.filter(x => x.tipo === 'obrigatória'), opt = com.filter(x => x.tipo !== 'obrigatória');
+    const conta = (xs, s) => xs.filter(x => x.s === s).length;
+    const soFalta = !!S.currSoFalta, ROTS = { ok: 'feita', and: 'cursando', rep: 'reprovada — refazer', falta: 'falta' };
+    const chip = x => `<span class="cu cu-${x.s}" title="${esc(x.cod)} · ${esc(titulo(x.nome))}${x.ch ? ` · ${x.ch} h` : ''} — ${ROTS[x.s]}"><b>${esc(x.cod)}</b> ${esc(titulo(x.nome))}</span>`;
+    const pers = [...new Set(obr.map(x => x.per))].sort((a, b) => (+a || 99) - (+b || 99));
+    const linhas = pers.map(p => { const xs = obr.filter(x => x.per === p && (!soFalta || x.s !== 'ok')); return xs.length ? `<div class="cu-per"><span class="cu-p">${p ? p + 'º' : '—'}</span><div class="cu-l">${xs.map(chip).join('')}</div></div>` : ''; }).join('');
+    const feitas = conta(obr, 'ok'), pct = obr.length ? Math.round(100 * feitas / obr.length) : 0;
+    const optF = opt.filter(x => x.s === 'ok' || x.s === 'and');
+    return `<div class="card" id="curr">${topo}<span class="r small muted">lido em ${fmt(deIso(c.em.slice(0, 10)))}</span></h3>
+      <div class="cu-res"><div><b>${feitas}</b><span>de ${obr.length} obrigatórias feitas</span></div><div><b style="color:var(--ac)">${conta(obr, 'and')}</b><span>cursando agora</span></div><div><b style="color:var(--warn)">${conta(obr, 'falta') + conta(obr, 'rep')}</b><span>faltam</span></div>${opt.length ? `<div><b>${optF.length}</b><span>optativas feitas/cursando</span></div>` : ''}</div>
+      <div class="ig-bar" style="margin:10px 0 12px"><i style="width:${pct}%"></i></div>
+      <div class="acts" style="margin-bottom:10px"><label class="small"><input type="checkbox" data-a="curr-falta" ${soFalta ? 'checked' : ''}> Mostrar só o que falta</label><span class="r"></span><button class="btn sm" data-a="curr-carregar">${ic('refresh')} Ler de novo</button></div>
+      ${linhas || vazio(soFalta ? 'Nenhuma obrigatória faltando. 🎉' : 'Nenhuma disciplina obrigatória encontrada.')}
+      ${optF.length ? `<div class="sec-t">Optativas feitas ou cursando</div><div class="cu-l">${optF.map(chip).join('')}</div>` : ''}
+      <div class="leg" style="margin-top:10px"><span><i class="cu-ok"></i>feita</span><span><i class="cu-and"></i>cursando</span><span><i class="cu-rep"></i>reprovada</span><span><i class="cu-falta"></i>falta</span></div>
+      <p class="small fade" style="margin:8px 0 0">Compara os códigos do currículo com o seu relatório de notas. Disciplina aproveitada ou equivalente com outro código pode aparecer como "falta".</p></div>`;
+  }
+
   /* ---------- simulador de índices ---------- */
   /**
    * Modelo do simulador. Ancora no valor oficial do índice (SIGAA) e descobre, pelas suas notas antigas,
@@ -601,7 +689,7 @@ var SMT = (() => {
     const todas = passadas.map(l => l.nota), soAprov = passadas.filter(l => sitClass(l.sit) === 's-ok').map(l => l.nota);
     const mT = media(todas), mA = media(soAprov);
     let idxs = S.dados.perfil.indices.map(i => ({ k: i.k, t: i.t, v: N.num(i.v) }))
-      .filter(i => i.v != null && i.v > 0 && i.v <= 10 && !/^IE|IECH|IEPL|IEA/i.test(i.k));
+      .filter(i => i.v != null && i.v > 0 && i.v <= 10 && !/^(IE|MCN)/i.test(i.k));
     const estimado = !idxs.length;
     if (estimado && mT != null) idxs = [{ k: 'Média geral', t: 'Média das notas finais (estimada pelo SIGAA+)', v: mT }];
     idxs = idxs.map(i => {
@@ -656,7 +744,7 @@ var SMT = (() => {
     const melhorSem = pts.length ? pts.reduce((a, s) => s.media > a.media ? s : a, pts[0]) : null;
     const desvio = d.todas.length > 1 ? Math.sqrt(d.todas.reduce((a, l) => a + (l.nota - d.mediaGeral) ** 2, 0) / d.todas.length) : null;
     const idx = p.indices.filter(i => /^(IRA|MC|CR)$/i.test(i.k)).map(i => `<div class="stat"><div class="v">${esc(isNaN(+i.v.replace(',', '.')) ? i.v : (+i.v.replace(',', '.')).toFixed(2).replace('.', ','))}</div><div class="k">${esc(i.t || i.k)}</div></div>`).join('');
-    let h = `<h2>Desempenho</h2><p class="sub">Como você está indo no curso, semestre a semestre.</p><div class="grid">
+    let h = `<h2>Desempenho</h2><p class="sub">Como você está indo no curso, semestre a semestre.</p>${atalhosDocumentos(S)}<div class="grid">
       ${idx}
       <div class="stat"><div class="v">${f2(d.mediaGeral)}</div><div class="k">média das notas finais</div></div>
       ${taxa != null ? `<div class="stat"><div class="v" style="color:${taxa >= 90 ? 'var(--ok)' : taxa >= 70 ? 'var(--warn)' : 'var(--bad)'}">${taxa}%</div><div class="k">taxa de aprovação (${tot.ap} de ${tot.ap + tot.rp})</div></div>` : ''}
@@ -667,6 +755,7 @@ var SMT = (() => {
       <div class="stat"><div class="v">${d.sems.length}</div><div class="k">semestres cursados</div></div></div>`;
     h += semestreAtual(S);
     h += simIndices(S);
+    { const a = indicesExplicados(S), b = integralizacao(S, d); if (a || b) h += a && b ? `<div class="cols">${a}${b}</div>` : a + b; }
     // gráfico de linha (série única: sem legenda; título nomeia)
     if (pts.length >= 1) {
       const W = 640, H = 220, L = 30, R = 16, T = 18, B = 26, x = i => L + (pts.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (pts.length - 1)), y = v => T + (10 - v) * (H - T - B) / 10;
@@ -694,7 +783,7 @@ var SMT = (() => {
     const rep = d.sems.flatMap(s => s.linhas.filter(l => sitClass(l.sit) === 's-bad').map(l => ({ ...l, sem: s.titulo })));
     h += `<div class="card"><h3>Melhores notas</h3>${top.map(l => `<div class="row"><div class="grow">${esc(titulo(l.nome))} <span class="fade small">${esc(l.sem)}</span></div><b>${f1(l.nota)}</b></div>`).join('') || vazio('—')}
       ${rep.length ? `<h3 style="margin-top:14px">Reprovações / trancamentos</h3>${rep.map(l => `<div class="row"><div class="grow">${esc(titulo(l.nome))} <span class="fade small">${esc(l.sem)}</span></div><span class="sit s-bad">${esc(l.sit)}</span></div>`).join('')}` : ''}</div></div>`;
-    if (p.integ && p.integ.length) h += `<div class="card"><h3>Carga horária</h3><div class="tw"><table><tbody>${p.integ.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v} h</td></tr>`).join('')}</tbody></table></div></div>`;
+    h += curriculo(S, d);
     return h;
   }
 
