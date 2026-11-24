@@ -173,7 +173,7 @@ var SMT = (() => {
 
     if (vis('turmas')) B.turmas = `<div class="card" data-id="turmas"><h3>${ic('turmas')} Turmas ${esc(dados.periodo)} <a class="r small" href="#" data-v="turmas">detalhes →</a></h3>${dados.turmas.map(t => {
       const fsU = fechamento(S, t), n = statusNota(S, t);
-      const notas = fsU.length ? fsU.map(u => `<span class="chip ${u.v == null ? 'gray' : u.v < S.cfg.mediaAprov ? 'bad' : ''}">${u.rot}: ${u.v != null ? f1(u.v) : 'falta lançar'}</span>`).join('') + (n.estado === 'possivel' ? `<span class="chip ${n.cls}">${esc(n.txt)}</span>` : '') : '';
+      const notas = fsU.length ? fsU.map(u => `<span class="chip ${u.v == null ? 'gray' : u.v < S.cfg.mediaAprov ? 'bad' : ''}" title="${esc(dicaUnid(u))}">${u.rot}: ${u.v != null ? f1(u.v) : u.parcial != null ? `${f1(u.parcial)} parcial` : 'falta lançar'}</span>`).join('') + (n.estado === 'possivel' ? `<span class="chip ${n.cls}">${esc(n.txt)}</span>` : '') : '';
       return `<div class="row"><span class="dot" style="background:${t.cor}"></span><div class="grow"><div class="b">${esc(titulo(t.nome))} <span class="fade small" style="font-weight:400">${esc(t.codigo)}</span></div><div class="muted small">${[t.local, horarioCurto(S, t)].filter(Boolean).map(esc).join(' · ')}</div>${chipFaltas(t.resumo)}${notas}</div></div>`;
     }).join('') || vazio('Nenhuma turma encontrada.')}</div>`;
     if (vis('atual') && dados.atualizacoes.length) B.atual = `<div class="card" data-id="atual"><h3>${ic('info')} Atualizações nas turmas</h3>${dados.atualizacoes.slice(0, 8).map(a => { const ti = dados.turmas.findIndex(t => norm(t.nome) === norm(a.turma)); return `<div class="row${ti >= 0 ? ' clk' : ''}"${ti >= 0 ? ` data-a="tv-abrir" data-i="${ti}" title="Abrir a turma virtual"` : ''}><span class="dot" style="background:${corDe(S, a.turma)}"></span><div class="small grow"><b>${esc(a.data.slice(0, 5))}</b> · ${esc(titulo(a.turma))}<br>${esc(a.texto)}</div></div>`; }).join('')}</div>`;
@@ -214,11 +214,11 @@ var SMT = (() => {
     const fs = fechamento(S, t), meta = S.cfg.mediaAprov;
     if (!fs.length) return `<div class="kpi"><span class="k">Média</span><b class="v">${n.media != null ? f1(n.media) : '—'}</b><span class="s ${n.cls}">${esc(n.txt)}</span></div>`;
     const pend = fs.filter(u => u.v == null);
-    const txt = pend.length ? `falta lançar ${pend.map(u => u.rot).join(' e ')}` : n.media != null ? `média ${f1(n.media)}` : '';
+    const txt = pend.length ? `falta lançar ${pend.map(u => u.parcial != null && u.pend.length ? `${u.pend.join(', ')} (${u.rot})` : u.rot).join(' e ')}` : n.media != null ? `média ${f1(n.media)}` : '';
     const cls = pend.length ? 'warn' : n.media != null && n.media < meta ? 'bad' : 'ok';
     const dica = [...pend.filter(u => u.pend.length).map(u => `${u.rot}: falta ${u.pend.join(', ')}`), n.txt && /precisa/.test(n.txt) ? n.txt + ' no que falta' : ''].filter(Boolean).join(' · ');
     return `<div class="kpi" title="${esc(dica)}"><span class="k">Notas</span>
-      <div class="nn">${fs.map(u => `<span class="nn-u ${u.v == null ? 'pend' : u.v < meta ? 'baixa' : ''}"><small>${u.rot}</small><b>${u.v != null ? f1(u.v) : '—'}</b></span>`).join('')}</div>
+      <div class="nn">${fs.map(u => `<span class="nn-u ${u.v == null ? (u.parcial != null ? 'parc' : 'pend') : u.v < meta ? 'baixa' : ''}" title="${esc(dicaUnid(u))}"><small>${u.rot}${u.parcial != null ? ' parcial' : ''}</small><b>${u.v != null ? f1(u.v) : u.parcial != null ? f1(u.parcial) : '—'}</b></span>`).join('')}</div>
       <span class="s ${cls}">${esc(txt)}</span></div>`;
   }
   function vTurmas(S) {
@@ -449,7 +449,7 @@ var SMT = (() => {
     return `<div class="rts">${xs.map(({ t, n, cls }) => `<button class="rt" data-a="ir-nota" data-id="${esc(chaveT(t))}" style="--c:${t.cor}">
         <span class="rt-n">${esc(titulo(t.nome))}</span>
         <span class="rt-m"><b>${n.media != null ? f1(n.media) : '—'}</b><span class="chip ${cls}">${esc(n.txt || '—')}</span></span>
-        <span class="rt-u">${fechamento(S, t).map(u => `<span class="${u.v == null ? 'fade' : u.v < S.cfg.mediaAprov ? 'err' : ''}">${u.rot} <b>${u.v != null ? f1(u.v) : '—'}</b></span>`).join('')}</span></button>`).join('')}</div>`;
+        <span class="rt-u">${fechamento(S, t).map(u => `<span class="${u.v == null ? (u.parcial != null ? 'parc' : 'fade') : u.v < S.cfg.mediaAprov ? 'err' : ''}" title="${esc(dicaUnid(u))}">${u.rot} <b>${u.v != null ? f1(u.v) : u.parcial != null ? f1(u.parcial) + '*' : '—'}</b></span>`).join('')}</span></button>`).join('')}</div>`;
   }
   /** Tabela no formato da turma virtual: Unid. 1 (P1T, P1E, Nota) | Unid. 2 (…) | Reposição | Resultado… */
   function tabelaSigaa(S, t) {
@@ -486,10 +486,12 @@ var SMT = (() => {
     } else {
       const un = t.unidades || [];
       corpo = (un.length ? `<div class="tw"><table class="tsig"><thead><tr>${un.map(u => `<th class="g">${esc(u.h)}</th>`).join('')}</tr></thead><tbody><tr>${un.map(u => `<td class="n nu ${u.v != null && u.v < S.cfg.mediaAprov ? 'baixa' : ''}">${u.v != null ? f1(u.v) : '<span class="fade">—</span>'}</td>`).join('')}</tr></tbody></table></div>` : '')
-        + `<div class="small fade" style="margin-top:8px">${S.dados.parcial ? 'Carregando as notas da turma…' : `Notas por avaliação indisponíveis${t.avalErro ? ': ' + esc(t.avalErro) : ' — clique em atualizar (R).'}`}</div>`;
+        + `<div class="small fade" style="margin-top:8px">${S.dados.parcial ? 'Carregando as notas da turma…' : (t.avalErro && /sem tabela de notas/.test(t.avalErro) ? 'A página "Ver Notas" desta turma virtual ainda está vazia: o professor não publicou notas por avaliação lá.' : `Notas por avaliação indisponíveis${t.avalErro ? ': ' + esc(t.avalErro) : ' — clique em atualizar (R).'}`)}</div>`;
     }
     return corpo;
   }
+  /** Texto de ajuda de uma unidade ainda aberta. */
+  const dicaUnid = u => u.v != null ? '' : u.parcial != null ? `${u.rot} parcial: ${u.lancadas.join(', ')} — falta ${u.pend.join(', ') || 'fechar'}` : `${u.rot}: falta lançar${u.pend.length ? ' ' + u.pend.join(', ') : ''}`;
   /** Fechamento por unidade: [{rot:'N1', v:8.3, pend:['P2T','P2E']}] */
   function fechamento(S, t) {
     const plano = N.planoAvaliacao(t);
@@ -497,7 +499,9 @@ var SMT = (() => {
     if (plano) return [...new Set(plano.map(x => x.unid))].map((g, i) => {
       const xs = plano.filter(x => x.unid === g), nu = xs.find(x => x.notaUnid);
       const v = xs[0].fixaUnid != null ? xs[0].fixaUnid : nu ? nu.nota : null;
-      return { rot: rot(g, i), v, pend: v == null ? xs.filter(x => x.nota == null && !x.notaUnid).map(x => x.abrev) : [] };
+      const lan = xs.filter(x => x.nota != null && !x.notaUnid), pesoL = lan.reduce((a, x) => a + x.peso, 0);
+      const parcial = v == null && lan.length && pesoL ? lan.reduce((a, x) => a + x.nota * x.peso, 0) / pesoL : null;
+      return { rot: rot(g, i), v, parcial, lancadas: lan.map(x => `${x.abrev} ${f1(x.nota)}`), pend: v == null ? xs.filter(x => x.nota == null && !x.notaUnid).map(x => x.abrev) : [] };
     });
     return (t.unidades || []).map((u, i) => ({ rot: rot(u.h, i), v: u.v, pend: [] }));
   }

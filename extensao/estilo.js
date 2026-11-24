@@ -275,7 +275,8 @@ th small.peso{display:block;font-size:11px;font-weight:600;color:var(--fade);mar
 .nn-u{display:flex;flex-direction:column;line-height:1.1}
 .nn-u small{font-size:11.5px;font-weight:700;color:var(--fade)}
 .nn-u b{font-size:22px;font-weight:750;font-variant-numeric:tabular-nums}
-.nn-u.pend b{color:var(--fade)}.nn-u.baixa b{color:var(--bad)}
+.nn-u.pend b{color:var(--fade)}.nn-u.parc b{color:var(--mut);font-style:italic}.nn-u.parc small{color:var(--warn)}
+.rt-u .parc b{color:var(--mut);font-style:italic}.nn-u.baixa b{color:var(--bad)}
 .tc details.mais .tw{margin-top:4px}
 .leg-f{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.leg-f .fd{min-width:26px;height:22px;font-size:11.5px}
 /* notas — visual novo */
